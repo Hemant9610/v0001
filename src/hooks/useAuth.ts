@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, type AuthUser, type StudentProfile } from '@/lib/supabase'
+import { supabase, testDatabaseConnection, type AuthUser, type StudentProfile } from '@/lib/supabase'
 
 export interface AuthState {
   user: AuthUser | null
@@ -12,38 +12,60 @@ export const useAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     profile: null,
-    isLoading: false,
+    isLoading: true, // Start with loading true to check stored auth
     error: null
   })
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    console.log('🔐 Starting login process for:', email)
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      console.log('Attempting login with email:', email)
+      // Clean inputs
+      const cleanEmail = email.trim().toLowerCase()
+      const cleanPassword = password.trim()
 
-      // First, check if the email exists in the auth table
-      const { data: emailCheck, error: emailError } = await supabase
-        .from('v0001_auth')
-        .select('email, password')
-        .eq('email', email.trim())
-        .maybeSingle()
-
-      console.log('Email check result:', { emailCheck, emailError })
-
-      if (emailError) {
-        console.error('Database query error:', emailError)
+      console.log('🔍 Step 1: Testing database connection...')
+      const connectionTest = await testDatabaseConnection()
+      
+      if (!connectionTest.authTable) {
+        console.error('❌ Auth table connection failed:', connectionTest.errors.auth)
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
-          error: 'Database connection error. Please try again.' 
+          error: `❌ Database connection failed: ${connectionTest.errors.auth}` 
         }))
         return false
       }
 
-      // If no user found with this email
-      if (!emailCheck) {
-        console.log('Email not found in database')
+      console.log('✅ Database connection successful')
+
+      console.log('🔍 Step 2: Searching for email in auth table...')
+      
+      // Query auth table for the email
+      const { data: authUsers, error: emailError } = await supabase
+        .from('v0001_auth')
+        .select('*')
+        .eq('email', cleanEmail)
+
+      console.log('📊 Email search result:', {
+        found: authUsers?.length || 0,
+        error: emailError?.message || 'none'
+      })
+
+      if (emailError) {
+        console.error('❌ Database query error:', emailError)
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: `❌ Database error: ${emailError.message}` 
+        }))
+        return false
+      }
+
+      // Check if email exists
+      if (!authUsers || authUsers.length === 0) {
+        console.log('❌ Email not found in database')
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
@@ -52,9 +74,18 @@ export const useAuth = () => {
         return false
       }
 
-      // Email exists, now check if password matches
-      if (emailCheck.password !== password.trim()) {
-        console.log('Password does not match')
+      if (authUsers.length > 1) {
+        console.warn('⚠️ Multiple users found with same email')
+      }
+
+      const authUser = authUsers[0]
+      console.log('✅ Email found for user:', authUser.student_id)
+
+      console.log('🔍 Step 3: Verifying password...')
+      
+      // Check password
+      if (authUser.password !== cleanPassword) {
+        console.log('❌ Password does not match')
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
@@ -63,116 +94,134 @@ export const useAuth = () => {
         return false
       }
 
-      // Both email and password are correct, now get full user data
-      const { data: authData, error: authError } = await supabase
-        .from('v0001_auth')
-        .select('*')
-        .eq('email', email.trim())
-        .eq('password', password.trim())
-        .single()
+      console.log('✅ Password verified successfully')
 
-      console.log('Full auth data result:', { authData, authError })
-
-      if (authError || !authData) {
-        console.error('Error fetching full auth data:', authError)
-        setAuthState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Authentication error. Please try again.' 
-        }))
-        return false
-      }
-
-      console.log('✅ Authentication successful for user:', authData.email)
-
-      // If authentication successful, fetch the student profile using email
-      let profileData = null
+      console.log('🔍 Step 4: Loading student profile...')
       
-      console.log('Fetching student profile for email:', authData.email)
-      
-      const { data: profile, error: profileError } = await supabase
+      // Fetch student profile using email
+      const { data: studentProfiles, error: profileError } = await supabase
         .from('v0001_student_database')
         .select('*')
-        .eq('email', authData.email)
-        .maybeSingle()
+        .eq('email', cleanEmail)
 
-      console.log('Student profile query result:', { profile, profileError })
+      console.log('📊 Profile search result:', {
+        found: studentProfiles?.length || 0,
+        error: profileError?.message || 'none'
+      })
 
+      let profileData = null
       if (profileError) {
-        console.warn('Could not fetch student profile:', profileError)
-      } else if (profile) {
-        profileData = profile
-        console.log('✅ Student profile loaded:', profileData.first_name, profileData.last_name)
+        console.warn('⚠️ Could not fetch student profile:', profileError.message)
+      } else if (studentProfiles && studentProfiles.length > 0) {
+        profileData = studentProfiles[0]
+        console.log('✅ Student profile loaded:', {
+          name: `${profileData.first_name} ${profileData.last_name}`,
+          studentId: profileData.student_id
+        })
       } else {
         console.log('⚠️ No student profile found for this email')
       }
 
-      setAuthState({
-        user: authData,
+      // Update auth state
+      const finalAuthState = {
+        user: authUser,
         profile: profileData,
         isLoading: false,
         error: null
-      })
-
-      // Store auth state in localStorage for persistence
-      localStorage.setItem('auth_user', JSON.stringify(authData))
-      if (profileData) {
-        localStorage.setItem('student_profile', JSON.stringify(profileData))
       }
 
-      console.log('✅ Login successful - Access granted!')
+      setAuthState(finalAuthState)
+
+      // Store in localStorage for persistence
+      try {
+        localStorage.setItem('profeshare_auth_user', JSON.stringify(authUser))
+        if (profileData) {
+          localStorage.setItem('profeshare_student_profile', JSON.stringify(profileData))
+        }
+        console.log('✅ Auth state saved to localStorage')
+      } catch (storageError) {
+        console.warn('⚠️ Could not save to localStorage:', storageError)
+      }
+
+      console.log('🎉 Login successful! Access granted.')
       return true
+
     } catch (error) {
-      console.error('Unexpected login error:', error)
+      console.error('💥 Unexpected login error:', error)
       setAuthState(prev => ({ 
         ...prev, 
         isLoading: false, 
-        error: 'An unexpected error occurred. Please try again.' 
+        error: `❌ Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` 
       }))
       return false
     }
   }
 
   const logout = () => {
-    console.log('🚪 Logging out')
+    console.log('🚪 Logging out user')
+    
     setAuthState({
       user: null,
       profile: null,
       isLoading: false,
       error: null
     })
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('student_profile')
+    
+    // Clear localStorage
+    try {
+      localStorage.removeItem('profeshare_auth_user')
+      localStorage.removeItem('profeshare_student_profile')
+      console.log('✅ Auth data cleared from localStorage')
+    } catch (error) {
+      console.warn('⚠️ Could not clear localStorage:', error)
+    }
   }
 
   const clearError = () => {
     setAuthState(prev => ({ ...prev, error: null }))
   }
 
-  // Check for existing auth state on mount
+  // Initialize auth state from localStorage
   useEffect(() => {
-    const storedUser = localStorage.getItem('auth_user')
-    const storedProfile = localStorage.getItem('student_profile')
-    
-    console.log('Checking stored auth:', { storedUser: !!storedUser, storedProfile: !!storedProfile })
-    
-    if (storedUser) {
+    const initializeAuth = async () => {
+      console.log('🔄 Initializing auth state...')
+      
       try {
-        const user = JSON.parse(storedUser)
-        const profile = storedProfile ? JSON.parse(storedProfile) : null
-        setAuthState({
-          user,
-          profile,
-          isLoading: false,
-          error: null
-        })
-        console.log('✅ Restored auth state from localStorage')
+        const storedUser = localStorage.getItem('profeshare_auth_user')
+        const storedProfile = localStorage.getItem('profeshare_student_profile')
+        
+        if (storedUser) {
+          console.log('📦 Found stored auth data')
+          
+          const user = JSON.parse(storedUser)
+          const profile = storedProfile ? JSON.parse(storedProfile) : null
+          
+          // Verify the stored data is still valid by testing database connection
+          const connectionTest = await testDatabaseConnection()
+          
+          if (connectionTest.authTable) {
+            setAuthState({
+              user,
+              profile,
+              isLoading: false,
+              error: null
+            })
+            console.log('✅ Auth state restored from localStorage')
+          } else {
+            console.log('❌ Database connection failed, clearing stored auth')
+            logout()
+          }
+        } else {
+          console.log('📭 No stored auth data found')
+          setAuthState(prev => ({ ...prev, isLoading: false }))
+        }
       } catch (error) {
-        console.error('Error parsing stored auth data:', error)
-        localStorage.removeItem('auth_user')
-        localStorage.removeItem('student_profile')
+        console.error('💥 Error initializing auth:', error)
+        logout()
       }
     }
+
+    initializeAuth()
   }, [])
 
   return {

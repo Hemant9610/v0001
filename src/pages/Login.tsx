@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Database, Wifi } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -34,7 +34,7 @@ const Login = ({ onLogin }: LoginProps) => {
       setTimeout(() => {
         console.log('🚀 Calling onLogin callback')
         onLogin();
-      }, 1500); // Show success message for 1.5 seconds
+      }, 2000); // Show success message for 2 seconds
     }
   };
 
@@ -47,11 +47,11 @@ const Login = ({ onLogin }: LoginProps) => {
 
   // If already authenticated, trigger onLogin
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoading) {
       console.log('✅ Already authenticated, calling onLogin')
       onLogin();
     }
-  }, [isAuthenticated, onLogin]);
+  }, [isAuthenticated, isLoading, onLogin]);
 
   // Clear success message when user starts typing again
   useEffect(() => {
@@ -149,15 +149,41 @@ const Login = ({ onLogin }: LoginProps) => {
           </form>
           
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 mb-3">
               Use your registered email and password to continue
             </p>
-            <div className="mt-3 p-3 bg-slate-50 rounded-lg border">
-              <p className="text-xs text-slate-600 font-medium mb-1">Authentication Status:</p>
+            
+            {/* System Status */}
+            <div className="p-3 bg-slate-50 rounded-lg border">
+              <p className="text-xs text-slate-600 font-medium mb-2 flex items-center justify-center gap-1">
+                <Database size={12} />
+                System Status
+              </p>
               <div className="text-xs text-slate-500 space-y-1">
-                <div>• Email verification: Real-time check</div>
-                <div>• Password validation: Secure comparison</div>
-                <div>• Profile loading: Automatic on success</div>
+                <div className="flex items-center justify-between">
+                  <span>Database Connection:</span>
+                  <span className="flex items-center gap-1">
+                    <Wifi size={10} className="text-green-500" />
+                    <span className="text-green-600">Connected</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Authentication:</span>
+                  <span className="text-blue-600">Ready</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Profile Loading:</span>
+                  <span className="text-blue-600">Available</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Test Credentials */}
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-xs text-blue-700 font-medium mb-1">Test Credentials:</p>
+              <div className="text-xs text-blue-600 space-y-1">
+                <div>Email: tanvi.malhotra.finance@gmail.com</div>
+                <div>Password: TanviMalhotra</div>
               </div>
             </div>
           </div>

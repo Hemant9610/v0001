@@ -20,98 +20,81 @@ export const useAuth = () => {
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      console.log('Attempting login with:', { email, password })
+      console.log('Attempting login with email:', email)
 
-      // First, let's check what data exists in the auth table
-      const { data: allAuthData, error: allAuthError } = await supabase
-        .from('v0001_auth')
-        .select('*')
-        .limit(10)
-
-      console.log('All auth records (first 10):', allAuthData)
-      console.log('Auth table query error:', allAuthError)
-
-      // Now try to find matching email first
-      const { data: emailMatches, error: emailError } = await supabase
+      // Query the auth table using email and password
+      const { data: authData, error: authError } = await supabase
         .from('v0001_auth')
         .select('*')
         .eq('email', email.trim())
+        .eq('password', password.trim())
+        .single()
 
-      console.log('Email matches:', emailMatches)
-      console.log('Email query error:', emailError)
+      console.log('Auth query result:', { authData, authError })
 
-      if (emailError) {
-        console.error('Email query error:', emailError)
-        setAuthState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Database connection error' 
-        }))
-        return false
-      }
-
-      if (!emailMatches || emailMatches.length === 0) {
-        console.log('No email matches found')
-        setAuthState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Email not found in database' 
-        }))
-        return false
-      }
-
-      // Check if any of the email matches have the correct password
-      const passwordMatch = emailMatches.find(user => {
-        console.log('Comparing passwords:', { 
-          provided: password, 
-          stored: user.password,
-          match: user.password === password 
-        })
-        return user.password === password
-      })
-
-      if (!passwordMatch) {
-        console.log('Password does not match for email:', email)
-        setAuthState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Incorrect password' 
-        }))
-        return false
-      }
-
-      console.log('Authentication successful for user:', passwordMatch)
-
-      // If authentication successful, fetch the student profile
-      let profileData = null
-      if (passwordMatch.student_id) {
-        console.log('Fetching student profile for student_id:', passwordMatch.student_id)
+      if (authError) {
+        console.error('Auth query error:', authError)
         
-        const { data: profile, error: profileError } = await supabase
-          .from('v0001_student_database')
-          .select('*')
-          .eq('student_id', passwordMatch.student_id)
-          .maybeSingle()
-
-        console.log('Student profile query result:', { profile, profileError })
-
-        if (profileError) {
-          console.warn('Could not fetch student profile:', profileError)
+        // Check if it's a "no rows returned" error
+        if (authError.code === 'PGRST116') {
+          setAuthState(prev => ({ 
+            ...prev, 
+            isLoading: false, 
+            error: 'Invalid email or password' 
+          }))
         } else {
-          profileData = profile
-          console.log('Student profile loaded:', profileData)
+          setAuthState(prev => ({ 
+            ...prev, 
+            isLoading: false, 
+            error: 'Database connection error' 
+          }))
         }
+        return false
+      }
+
+      if (!authData) {
+        console.log('No matching user found')
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Invalid email or password' 
+        }))
+        return false
+      }
+
+      console.log('Authentication successful for user:', authData)
+
+      // If authentication successful, fetch the student profile using email
+      let profileData = null
+      
+      console.log('Fetching student profile for email:', authData.email)
+      
+      const { data: profile, error: profileError } = await supabase
+        .from('v0001_student_database')
+        .select('*')
+        .eq('email', authData.email)
+        .maybeSingle()
+
+      console.log('Student profile query result:', { profile, profileError })
+
+      if (profileError) {
+        console.warn('Could not fetch student profile:', profileError)
+      } else if (profile) {
+        profileData = profile
+        console.log('Student profile loaded:', profileData)
+      } else {
+        console.log('No student profile found for this email')
       }
 
       setAuthState({
-        user: passwordMatch,
+        user: authData,
         profile: profileData,
         isLoading: false,
         error: null
       })
 
       // Store auth state in localStorage for persistence
-      localStorage.setItem('auth_user', JSON.stringify(passwordMatch))
+      localStorage.setItem('auth_user', JSON.stringify(authData))
       if (profileData) {
         localStorage.setItem('student_profile', JSON.stringify(profileData))
       }

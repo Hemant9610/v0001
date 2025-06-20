@@ -1,5 +1,5 @@
 // Debug authentication system
-import { supabase } from './supabase'
+import { supabase, debugStudentData } from './supabase'
 
 export const debugAuth = {
   // Test database connection
@@ -39,7 +39,17 @@ export const debugAuth = {
         return false
       }
       
-      console.log('✅ Connection successful, records count:', data)
+      console.log('✅ Connection successful, auth records count:', data)
+      
+      // Also test student database
+      const { data: studentData, error: studentError } = await supabase
+        .from('v0001_student_database')
+        .select('count', { count: 'exact', head: true })
+      
+      if (!studentError) {
+        console.log('✅ Student database accessible, records count:', studentData)
+      }
+      
       return true
     } catch (err) {
       console.error('❌ Connection error:', err)
@@ -73,12 +83,42 @@ export const debugAuth = {
     }
   },
 
+  // List all student profiles
+  listAllStudentProfiles: async () => {
+    console.log('🔍 Fetching all student profiles...')
+    try {
+      const { data, error } = await supabase
+        .from('v0001_student_database')
+        .select('id, student_id, first_name, last_name, email, created_at')
+        .limit(10)
+      
+      if (error) {
+        console.error('❌ Error fetching student profiles:', error)
+        return []
+      }
+      
+      console.log('📋 Available student profiles:')
+      data?.forEach((profile, index) => {
+        console.log(`${index + 1}. ${profile.first_name} ${profile.last_name}`)
+        console.log(`   Student ID: ${profile.student_id}`)
+        console.log(`   Email: ${profile.email}`)
+        console.log(`   Database ID: ${profile.id}`)
+        console.log('   ---')
+      })
+      
+      return data || []
+    } catch (err) {
+      console.error('❌ Unexpected error:', err)
+      return []
+    }
+  },
+
   // Test specific user login
   testUserLogin: async (email: string, password: string) => {
     console.log(`🔍 Testing login for: ${email}`)
     
     try {
-      // Step 1: Check if user exists
+      // Step 1: Check if user exists in auth table
       const { data: users, error: fetchError } = await supabase
         .from('v0001_auth')
         .select('*')
@@ -117,7 +157,7 @@ export const debugAuth = {
       
       console.log('✅ Password matches!')
       
-      // Step 3: Check student profile
+      // Step 3: Check student profile in v0001_student_database
       const { data: studentProfile, error: profileError } = await supabase
         .from('v0001_student_database')
         .select('*')
@@ -126,12 +166,21 @@ export const debugAuth = {
       if (profileError) {
         console.error('❌ Error fetching student profile:', profileError)
       } else {
-        console.log(`📊 Found ${studentProfile?.length || 0} student profiles`)
+        console.log(`📊 Found ${studentProfile?.length || 0} student profiles for student_id: ${user.student_id}`)
         if (studentProfile && studentProfile.length > 0) {
+          const profile = studentProfile[0]
           console.log('👨‍🎓 Student profile:', {
-            name: `${studentProfile[0].first_name} ${studentProfile[0].last_name}`,
-            email: studentProfile[0].email
+            id: profile.id,
+            name: `${profile.first_name} ${profile.last_name}`,
+            email: profile.email,
+            student_id: profile.student_id,
+            skills: Array.isArray(profile.skills) ? profile.skills.length : 'N/A',
+            projects: Array.isArray(profile.projects) ? profile.projects.length : 'N/A'
           })
+        } else {
+          console.log('⚠️ No student profile found for this user')
+          console.log('🔍 Available student profiles:')
+          await debugAuth.listAllStudentProfiles()
         }
       }
       
@@ -150,7 +199,7 @@ export const debugAuth = {
     }
   },
 
-  // Create test user
+  // Create test user with matching student profile
   createTestUser: async () => {
     const testEmail = 'test@example.com'
     const testPassword = 'password123'
@@ -171,7 +220,7 @@ export const debugAuth = {
         return { email: testEmail, password: testPassword, student_id: testStudentId }
       }
       
-      // Create test user
+      // Create test user in auth table
       const { data, error } = await supabase
         .from('v0001_auth')
         .insert({
@@ -190,23 +239,51 @@ export const debugAuth = {
       console.log('✅ Test user created:', data)
       
       // Create corresponding student profile
-      const { error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('v0001_student_database')
         .insert({
           student_id: testStudentId,
           email: testEmail,
           first_name: 'Test',
           last_name: 'User',
-          skills: ['JavaScript', 'React', 'Node.js'],
-          projects: [{ name: 'Test Project', description: 'A test project' }],
-          experience: { summary: 'Test user for debugging' },
-          job_preferences: { location: 'Remote' }
+          skills: ['JavaScript', 'React', 'Node.js', 'TypeScript', 'Python'],
+          projects: [
+            { 
+              name: 'Test Project', 
+              description: 'A sample project for testing',
+              technologies: ['React', 'TypeScript'],
+              url: 'https://github.com/test/project'
+            }
+          ],
+          experience: { 
+            summary: 'Test user for debugging authentication and profile system',
+            internship: 'Software Development Intern at Tech Company'
+          },
+          job_preferences: { 
+            location: 'Remote',
+            desired_role: 'Software Developer',
+            job_type: 'Full-time',
+            industry: 'Technology'
+          },
+          certifications_and_licenses: [
+            {
+              name: 'JavaScript Certification',
+              issuer: 'Tech Academy',
+              date: '2024'
+            }
+          ]
         })
+        .select()
+        .single()
       
       if (profileError) {
         console.error('❌ Error creating student profile:', profileError)
       } else {
-        console.log('✅ Student profile created')
+        console.log('✅ Student profile created:', {
+          id: profileData.id,
+          name: `${profileData.first_name} ${profileData.last_name}`,
+          student_id: profileData.student_id
+        })
       }
       
       return { email: testEmail, password: testPassword, student_id: testStudentId }
@@ -239,7 +316,10 @@ export const debugAuth = {
     // Test 2: List users
     const users = await debugAuth.listAllUsers()
     
-    // Test 3: Create test user if no users exist
+    // Test 3: List student profiles
+    const profiles = await debugAuth.listAllStudentProfiles()
+    
+    // Test 4: Create test user if no users exist
     if (users.length === 0) {
       console.log('ℹ️ No users found, creating test user...')
       const testUser = await debugAuth.createTestUser()
@@ -251,6 +331,20 @@ export const debugAuth = {
     } else {
       console.log('ℹ️ Existing users found. Try logging in with one of these emails:')
       users.forEach(user => console.log(`- ${user.email} (Student ID: ${user.student_id})`))
+    }
+    
+    // Test 5: Show data summary
+    console.log('')
+    console.log('📊 Database Summary:')
+    console.log(`- Auth users: ${users.length}`)
+    console.log(`- Student profiles: ${profiles.length}`)
+    
+    if (profiles.length > 0) {
+      console.log('')
+      console.log('🎯 Available student profiles for testing:')
+      profiles.forEach(profile => {
+        console.log(`- ${profile.first_name} ${profile.last_name} (${profile.student_id})`)
+      })
     }
     
     console.log('=====================================')

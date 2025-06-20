@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { customAuth, CustomAuthUser } from '@/lib/customAuth'
-import { StudentProfile } from '@/lib/supabase'
+import { StudentProfile, getStudentProfileByStudentId, debugStudentData } from '@/lib/supabase'
 
 interface AuthContextType {
   user: CustomAuthUser | null
@@ -20,30 +20,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStudentProfile = async (student_id: string) => {
     try {
-      // Use the safe method that handles single record gracefully
-      const { data, error } = await customAuth.getStudentProfileSafe(student_id)
+      console.log('🔍 Loading student profile for student_id:', student_id)
+      
+      // Use the enhanced method to get student profile by student_id
+      const { data, error } = await getStudentProfileByStudentId(student_id)
       
       if (error) {
-        console.error('Error loading student profile:', error)
-        // If it's a "multiple records" error, try to get the first one
-        if (error.message?.includes('multiple') || error.code === 'PGRST116') {
-          console.warn('Multiple student profiles found, using the first one')
-          const { data: fallbackData } = await customAuth.getStudentProfile(student_id)
-          if (fallbackData) {
-            setStudentProfile(fallbackData)
-          }
+        console.error('❌ Error loading student profile:', error)
+        
+        // If no profile found, show debug info in development
+        if (import.meta.env.DEV) {
+          console.log('🔍 Running debug to show available profiles...')
+          await debugStudentData()
         }
       } else if (data) {
+        console.log('✅ Student profile loaded successfully:', {
+          name: `${data.first_name} ${data.last_name}`,
+          email: data.email,
+          student_id: data.student_id,
+          skills_count: Array.isArray(data.skills) ? data.skills.length : 0,
+          projects_count: Array.isArray(data.projects) ? data.projects.length : 0
+        })
         setStudentProfile(data)
+      } else {
+        console.log('ℹ️ No student profile found for student_id:', student_id)
+        
+        // In development, show available profiles
+        if (import.meta.env.DEV) {
+          console.log('🔍 Available profiles:')
+          await debugStudentData()
+        }
       }
     } catch (err) {
-      console.error('Unexpected error loading student profile:', err)
+      console.error('❌ Unexpected error loading student profile:', err)
     }
   }
 
   const refreshStudentProfile = async () => {
     if (user) {
+      console.log('🔄 Refreshing student profile for:', user.student_id)
       await loadStudentProfile(user.student_id)
+    } else {
+      console.log('ℹ️ No user logged in, cannot refresh profile')
     }
   }
 
@@ -53,45 +71,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser)
+        console.log('🔄 Restoring user from localStorage:', parsedUser)
         setUser(parsedUser)
         loadStudentProfile(parsedUser.student_id)
       } catch (err) {
-        console.error('Error parsing stored user:', err)
+        console.error('❌ Error parsing stored user:', err)
         localStorage.removeItem('profeshare_user')
       }
+    } else {
+      console.log('ℹ️ No stored user found')
     }
     setLoading(false)
   }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('🔐 Attempting login with:', { email: email.trim(), passwordLength: password.length })
+      
       const { user: authUser, error } = await customAuth.signIn(email, password)
       
       if (error || !authUser) {
+        console.error('❌ Sign in error:', error)
         return { error: { message: error || 'Sign in failed' } }
       }
+      
+      console.log('✅ Authentication successful for:', authUser)
       
       // Store user in state and localStorage
       setUser(authUser)
       localStorage.setItem('profeshare_user', JSON.stringify(authUser))
       
-      // Load student profile
+      // Load student profile using the student_id from auth
       await loadStudentProfile(authUser.student_id)
       
       return { error: null }
     } catch (err) {
-      console.error('Unexpected sign in error:', err)
+      console.error('❌ Unexpected sign in error:', err)
       return { error: { message: 'An unexpected error occurred. Please try again.' } }
     }
   }
 
   const signOut = async () => {
     try {
+      console.log('🚪 Signing out user')
       setUser(null)
       setStudentProfile(null)
       localStorage.removeItem('profeshare_user')
     } catch (err) {
-      console.error('Unexpected sign out error:', err)
+      console.error('❌ Unexpected sign out error:', err)
     }
   }
 

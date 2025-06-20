@@ -64,23 +64,49 @@ const Profile = () => {
     navigate('/login')
   }
 
-  // Helper function to safely render array or object data
+  // Enhanced helper function to safely render array or object data
   const renderArrayData = (data: any, fallback = []) => {
-    if (!data) return fallback
-    if (Array.isArray(data)) return data
-    if (typeof data === 'object') {
-      // Handle object with array values
-      const values = Object.values(data)
-      return values.flat().filter(Boolean)
+    console.log('🔍 Processing data:', { data, type: typeof data, isArray: Array.isArray(data) })
+    
+    if (!data) {
+      console.log('❌ No data provided, returning fallback')
+      return fallback
     }
+    
+    if (Array.isArray(data)) {
+      console.log('✅ Data is array, returning as-is:', data)
+      return data
+    }
+    
     if (typeof data === 'string') {
       try {
         const parsed = JSON.parse(data)
-        return Array.isArray(parsed) ? parsed : [data]
-      } catch {
+        console.log('✅ Parsed JSON string:', parsed)
+        if (Array.isArray(parsed)) {
+          return parsed
+        }
+        // If parsed object has array values, extract them
+        if (typeof parsed === 'object') {
+          const values = Object.values(parsed).flat().filter(Boolean)
+          console.log('✅ Extracted values from object:', values)
+          return values
+        }
+        return [parsed]
+      } catch (err) {
+        console.log('⚠️ Failed to parse JSON, treating as single string:', data)
         return [data]
       }
     }
+    
+    if (typeof data === 'object') {
+      // Handle object with array values or convert to array
+      const values = Object.values(data)
+      const flatValues = values.flat().filter(Boolean)
+      console.log('✅ Extracted values from object:', flatValues)
+      return flatValues.length > 0 ? flatValues : [JSON.stringify(data)]
+    }
+    
+    console.log('⚠️ Converting single value to array:', [data])
     return [data]
   }
 
@@ -132,15 +158,26 @@ const Profile = () => {
     return studentProfile?.student_id || user?.student_id || 'No student ID'
   }
 
-  // Parse data from database with enhanced processing
+  // Parse data from database with enhanced processing and detailed logging
+  console.log('🔍 Raw studentProfile data:', studentProfile)
+  console.log('🔍 Raw skills data:', studentProfile?.skills)
+  console.log('🔍 Raw projects data:', studentProfile?.projects)
+  console.log('🔍 Raw experience data:', studentProfile?.experience)
+
   const skills = renderArrayData(studentProfile?.skills, [])
   const projects = renderArrayData(studentProfile?.projects, [])
   const experience = studentProfile?.experience || {}
   const certifications = renderArrayData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
 
+  console.log('✅ Processed skills:', skills)
+  console.log('✅ Processed projects:', projects)
+  console.log('✅ Processed experience:', experience)
+
   // Enhanced skill categorization
   const categorizeSkills = (skillsList: string[]) => {
+    console.log('🔍 Categorizing skills:', skillsList)
+    
     const categories = {
       'Programming Languages': ['JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin'],
       'Frontend Technologies': ['React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'jQuery'],
@@ -168,6 +205,7 @@ const Profile = () => {
       }
     })
 
+    console.log('✅ Categorized skills:', categorized)
     return categorized
   }
 
@@ -378,7 +416,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Skills Section */}
+          {/* Enhanced Skills Section with Better Data Handling */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -397,6 +435,20 @@ const Profile = () => {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Debug Info for Skills (Development Only) */}
+              {import.meta.env.DEV && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info</h4>
+                  <div className="text-xs font-mono text-yellow-700 space-y-1">
+                    <p><strong>Raw skills data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
+                    <p><strong>Processed skills:</strong> {JSON.stringify(skills)}</p>
+                    <p><strong>Skills count:</strong> {skills.length}</p>
+                    <p><strong>Skills type:</strong> {typeof studentProfile?.skills}</p>
+                    <p><strong>Is array:</strong> {Array.isArray(studentProfile?.skills) ? 'Yes' : 'No'}</p>
+                  </div>
+                </div>
+              )}
+
               {skills.length > 0 ? (
                 <div className="space-y-6">
                   {/* Skills Overview */}
@@ -419,6 +471,37 @@ const Profile = () => {
                     </div>
                   </div>
 
+                  {/* All Skills List (Simple Display) */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <Code size={20} className="text-blue-600" />
+                      All Skills
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {skills.map((skill: string, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 group">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                              <Code size={14} className="text-white" />
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-900 text-sm">{skill}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Progress value={Math.floor(Math.random() * 40) + 60} className="w-16 h-1.5" />
+                                <span className="text-xs text-gray-500">
+                                  {Math.floor(Math.random() * 3) + 1}+ yrs
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Star size={14} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Categorized Skills */}
                   {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
                     categorySkills.length > 0 && (
@@ -429,27 +512,14 @@ const Profile = () => {
                             {categorySkills.length}
                           </Badge>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex flex-wrap gap-2">
                           {categorySkills.map((skill: string, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                                  <Code size={16} className="text-white" />
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-900">{skill}</span>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Progress value={Math.floor(Math.random() * 40) + 60} className="w-20 h-2" />
-                                    <span className="text-xs text-gray-500">
-                                      {Math.floor(Math.random() * 3) + 1}+ years
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Star size={16} />
-                              </Button>
-                            </div>
+                            <Badge
+                              key={index}
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 px-3 py-1"
+                            >
+                              {skill}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -478,12 +548,30 @@ const Profile = () => {
               ) : (
                 <div className="text-center py-12 text-gray-500">
                   <Code size={64} className="mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills added yet</h3>
-                  <p className="text-gray-600 mb-4">Start building your professional profile by adding your skills</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found in database</h3>
+                  <p className="text-gray-600 mb-4">
+                    {studentProfile ? 
+                      'Your profile exists but no skills are recorded. Add your skills to showcase your expertise.' :
+                      'No profile data found. Please check your database connection.'
+                    }
+                  </p>
                   <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                     <Plus size={16} className="mr-2" />
                     Add your first skill
                   </Button>
+                  
+                  {/* Debug button for development */}
+                  {import.meta.env.DEV && (
+                    <div className="mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refreshStudentProfile}
+                      >
+                        🔄 Refresh Profile Data
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -813,6 +901,7 @@ const Profile = () => {
                   <p><strong>Projects Count:</strong> {projects.length}</p>
                   <p><strong>Experience Keys:</strong> {Object.keys(experience).length}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
+                  <p><strong>Raw Skills Data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 

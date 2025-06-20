@@ -1,22 +1,42 @@
-import { MapPin, Calendar, Building2, GraduationCap, Mail, ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useNavigate } from 'react-router-dom';
+import { MapPin, Calendar, Building2, GraduationCap, Mail, ArrowLeft, LogOut } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 
 const Profile = () => {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login')
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-4xl mx-auto p-6">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center text-slate-600 hover:text-blue-600 transition mb-6"
-        >
-          <ArrowLeft size={20} className="mr-1" />
-          <span className="text-sm font-medium">Back</span>
-        </button>
+        {/* Header with Back and Sign Out buttons */}
+        <div className="flex justify-between items-center mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center text-slate-600 hover:text-blue-600 transition"
+          >
+            <ArrowLeft size={20} className="mr-1" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </Button>
+        </div>
 
         {/* Header Card */}
         <Card className="mb-6 overflow-hidden">
@@ -30,13 +50,17 @@ const Profile = () => {
                     src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"
                     alt="Profile"
                   />
-                  <AvatarFallback className="text-2xl">SA</AvatarFallback>
+                  <AvatarFallback className="text-2xl">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
                 </Avatar>
               </div>
 
               {/* Profile Info */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl font-semibold text-slate-800 mb-1">Sarah Anderson</h1>
+                <h1 className="text-3xl font-semibold text-slate-800 mb-1">
+                  {user?.user_metadata?.full_name || 'User Profile'}
+                </h1>
                 <p className="text-base text-slate-600 mb-2">Senior UI/UX Designer & Product Manager</p>
 
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-2">
@@ -56,7 +80,7 @@ const Profile = () => {
 
                 <div className="flex items-center gap-1 text-blue-600 text-sm">
                   <Mail size={14} />
-                  <span>sarah.anderson@email.com</span>
+                  <span>{user?.email}</span>
                 </div>
 
                 <p className="mt-4 text-slate-700 text-sm leading-relaxed">
@@ -178,7 +202,7 @@ const Profile = () => {
         </Card>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Profile;
+export default Profile

@@ -1,73 +1,91 @@
-# Welcome to your Lovable project
+# Supabase Email Authentication with React
 
-## Project info
+This project demonstrates how to implement email authentication using Supabase in a React application with TypeScript.
 
-**URL**: https://lovable.dev/projects/50f70c62-4105-4cd0-a73d-d49759b1f5a9
+## Features
 
-## How can I edit this code?
+- Email/Password Authentication
+- User Registration
+- User Login
+- Protected Routes
+- User Profile Display
+- Session Management
+- Responsive Design with Tailwind CSS
 
-There are several ways of editing your application.
+## Setup
 
-**Use Lovable**
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/50f70c62-4105-4cd0-a73d-d49759b1f5a9) and start prompting.
+3. Create a Supabase project at [supabase.com](https://supabase.com)
 
-Changes made via Lovable will be committed automatically to this repo.
+4. Copy your Supabase URL and anon key to the `.env` file:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-**Use your preferred IDE**
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Environment Variables
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Create a `.env` file in the root directory with the following variables:
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-**Edit a file directly in GitHub**
+## Project Structure
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+src/
+├── components/
+│   ├── Auth.tsx          # Authentication component
+│   ├── Dashboard.tsx     # Protected dashboard component
+│   └── ui/              # UI components
+├── contexts/
+│   └── AuthContext.tsx  # Authentication context
+├── lib/
+│   └── supabase.ts      # Supabase client configuration
+└── App.tsx              # Main application component
+```
 
-**Use GitHub Codespaces**
+## Authentication Flow
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Sign Up**: Users can create an account with email and password
+2. **Email Confirmation**: Users receive a confirmation email (if enabled in Supabase)
+3. **Sign In**: Users can log in with their credentials
+4. **Protected Content**: Authenticated users can access the dashboard
+5. **Sign Out**: Users can log out and return to the auth screen
 
-## What technologies are used for this project?
+## Technologies Used
 
-This project is built with:
-
-- Vite
+- React 18
 - TypeScript
-- React
-- shadcn-ui
+- Supabase
 - Tailwind CSS
+- Vite
+- shadcn/ui components
 
-## How can I deploy this project?
+## Supabase Configuration
 
-Simply open [Lovable](https://lovable.dev/projects/50f70c62-4105-4cd0-a73d-d49759b1f5a9) and click on Share -> Publish.
+Make sure to configure your Supabase project:
 
-## Can I connect a custom domain to my Lovable project?
+1. Enable email authentication in your Supabase dashboard
+2. Configure email templates (optional)
+3. Set up any additional authentication providers if needed
 
-Yes, you can!
+## Contributing
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Feel free to submit issues and enhancement requests!
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## License
+
+This project is open source and available under the [MIT License](LICENSE).

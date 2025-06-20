@@ -1,8 +1,28 @@
-import { MapPin, Calendar, Building2, GraduationCap, Mail, ArrowLeft, LogOut, Award, Briefcase, Code, User as UserIcon } from 'lucide-react'
+import { 
+  MapPin, 
+  Calendar, 
+  Building2, 
+  GraduationCap, 
+  Mail, 
+  ArrowLeft, 
+  LogOut, 
+  Award, 
+  Briefcase, 
+  Code, 
+  User as UserIcon,
+  ExternalLink,
+  Plus,
+  Edit3,
+  MoreHorizontal,
+  Globe,
+  Phone,
+  Link as LinkIcon
+} from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -16,7 +36,7 @@ const Profile = () => {
   }
 
   // Helper function to safely render array or object data
-  const renderArrayData = (data: any, fallback = 'Not specified') => {
+  const renderArrayData = (data: any, fallback = []) => {
     if (!data) return fallback
     if (Array.isArray(data)) return data
     if (typeof data === 'object') return Object.values(data).flat()
@@ -37,304 +57,469 @@ const Profile = () => {
     return 'U'
   }
 
+  const getFullName = () => {
+    if (studentProfile?.first_name && studentProfile?.last_name) {
+      return `${studentProfile.first_name} ${studentProfile.last_name}`
+    }
+    return 'Student Profile'
+  }
+
+  const skills = renderArrayData(studentProfile?.skills, [])
+  const projects = Array.isArray(studentProfile?.projects) ? studentProfile.projects : []
+  const jobPrefs = studentProfile?.job_preferences || {}
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header with Back and Sign Out buttons */}
-        <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Navigation */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center text-slate-600 hover:text-blue-600 transition"
+            className="flex items-center text-gray-600 hover:text-blue-600 transition-colors"
           >
-            <ArrowLeft size={20} className="mr-1" />
-            <span className="text-sm font-medium">Back</span>
+            <ArrowLeft size={20} className="mr-2" />
+            <span className="font-medium">Back</span>
           </button>
           
-          <Button
-            onClick={handleSignOut}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <LogOut size={16} />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Header Card */}
-        <Card className="mb-6 overflow-hidden">
-          <div className="h-22 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-          <CardContent className="pt-6 pb-6">
-            <div className="flex flex-col sm:flex-row gap-6">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <Avatar className="w-32 h-32 border-4 border-white shadow-lg -mt-16">
-                  <AvatarImage
-                    src={studentProfile?.profile_image || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"}
-                    alt="Profile"
-                  />
-                  <AvatarFallback className="text-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                    {getInitials()}
-                  </AvatarFallback>
-                </Avatar>
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Main Profile */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Header Card */}
+            <Card className="overflow-hidden">
+              {/* Cover Photo */}
+              <div className="h-48 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 relative">
+                <div className="absolute inset-0 bg-black/20"></div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-4 right-4 text-white hover:bg-white/20"
+                >
+                  <Edit3 size={16} />
+                </Button>
               </div>
 
-              {/* Profile Info */}
-              <div className="flex-1 min-w-0 pt-4 sm:pt-0">
-                <h1 className="text-3xl font-semibold text-slate-800 mb-2">
-                  {studentProfile?.first_name && studentProfile?.last_name 
-                    ? `${studentProfile.first_name} ${studentProfile.last_name}`
-                    : 'Student Profile'
-                  }
-                </h1>
-                
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge variant="outline" className="text-blue-600 border-blue-200">
-                    <UserIcon size={12} className="mr-1" />
-                    {studentProfile?.student_id || user?.student_id || 'No ID'}
-                  </Badge>
-                </div>
+              <CardContent className="relative px-6 pb-6">
+                {/* Profile Picture */}
+                <div className="flex flex-col sm:flex-row gap-6 -mt-20">
+                  <div className="relative">
+                    <Avatar className="w-40 h-40 border-4 border-white shadow-lg">
+                      <AvatarImage
+                        src={studentProfile?.profile_image}
+                        alt="Profile"
+                      />
+                      <AvatarFallback className="text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                        {getInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white shadow-md hover:bg-gray-50"
+                    >
+                      <Edit3 size={14} />
+                    </Button>
+                  </div>
 
-                <div className="flex items-center gap-1 text-blue-600 text-sm mb-4">
-                  <Mail size={14} />
-                  <span>{studentProfile?.email || user?.email || 'No email'}</span>
-                </div>
-
-                {/* Quick Info */}
-                <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                  {studentProfile?.job_preferences?.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin size={14} />
-                      <span>{studentProfile.job_preferences.location}</span>
+                  {/* Profile Info */}
+                  <div className="flex-1 pt-4 sm:pt-8">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                          {getFullName()}
+                        </h1>
+                        <p className="text-lg text-gray-700 mb-2">
+                          {jobPrefs.desired_role || 'Student'} • {studentProfile?.student_id}
+                        </p>
+                        <div className="flex items-center text-gray-600 text-sm mb-3">
+                          <MapPin size={16} className="mr-1" />
+                          <span>{jobPrefs.location || 'Location not specified'}</span>
+                          <span className="mx-2">•</span>
+                          <span className="text-blue-600 font-medium">
+                            {studentProfile?.email ? '500+ connections' : 'Contact info'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <Building2 size={16} className="text-gray-500" />
+                          <span className="text-sm text-gray-600">
+                            {jobPrefs.company_preference || 'Open to opportunities'}
+                          </span>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal size={20} />
+                      </Button>
                     </div>
-                  )}
-                  {studentProfile?.created_at && (
-                    <div className="flex items-center gap-1">
-                      <Calendar size={14} />
-                      <span>Joined {new Date(studentProfile.created_at).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Skills Section */}
-        {studentProfile?.skills && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Code size={20} className="text-blue-600" />
-                <h2 className="text-xl font-semibold text-slate-800">Skills</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {renderArrayData(studentProfile.skills, []).map((skill: string, index: number) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  >
-                    {skill}
-                  </Badge>
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 mt-4">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6">
+                        Open to
+                      </Button>
+                      <Button variant="outline" className="px-6">
+                        Add profile section
+                      </Button>
+                      <Button variant="outline" className="px-6">
+                        Enhance profile
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Resources
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Open to Work Banner */}
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Open to work</h3>
+                      <p className="text-sm text-gray-700">
+                        {jobPrefs.job_type || 'Full-time'}, {jobPrefs.desired_role || 'Developer'} and {jobPrefs.industry || 'Technology'} roles
+                      </p>
+                      <Button variant="link" className="p-0 h-auto text-blue-600 text-sm">
+                        Show details
+                      </Button>
+                    </div>
+                    <Button variant="ghost" size="sm" className="ml-auto">
+                      <Edit3 size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* About Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-xl font-semibold">About</h2>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700 leading-relaxed">
+                  {studentProfile?.experience?.summary || 
+                   `Passionate ${jobPrefs.desired_role || 'student'} with expertise in modern technologies. 
+                   Currently pursuing ${jobPrefs.education_level || 'undergraduate studies'} and seeking 
+                   opportunities in ${jobPrefs.industry || 'technology sector'}.`}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Experience Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-xl font-semibold">Experience</h2>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm">
+                    <Plus size={16} />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit3 size={16} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {studentProfile?.experience && typeof studentProfile.experience === 'object' ? (
+                  <div className="space-y-6">
+                    {Object.entries(studentProfile.experience).map(([key, value], index) => (
+                      <div key={key} className="flex gap-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Building2 size={20} className="text-gray-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 capitalize">
+                            {key.replace(/_/g, ' ')}
+                          </h3>
+                          <p className="text-gray-700 text-sm mb-2">
+                            {typeof value === 'string' ? value : JSON.stringify(value)}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            {studentProfile?.created_at && 
+                             `Since ${new Date(studentProfile.created_at).getFullYear()}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Briefcase size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No experience added yet</p>
+                    <Button variant="outline" className="mt-3">
+                      <Plus size={16} className="mr-2" />
+                      Add experience
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Projects Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-xl font-semibold">Projects</h2>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm">
+                    <Plus size={16} />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit3 size={16} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {projects.length > 0 ? (
+                  <div className="space-y-6">
+                    {projects.map((project: any, index: number) => (
+                      <div key={index} className="flex gap-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Code size={20} className="text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">
+                            {project.name || project.title || `Project ${index + 1}`}
+                          </h3>
+                          {project.description && (
+                            <p className="text-gray-700 text-sm mb-3 leading-relaxed">
+                              {project.description}
+                            </p>
+                          )}
+                          {project.technologies && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {Array.isArray(project.technologies) ? 
+                                project.technologies.map((tech: string, techIndex: number) => (
+                                  <Badge
+                                    key={techIndex}
+                                    variant="secondary"
+                                    className="text-xs bg-gray-100 text-gray-700"
+                                  >
+                                    {tech}
+                                  </Badge>
+                                )) : (
+                                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                                    {project.technologies}
+                                  </Badge>
+                                )
+                              }
+                            </div>
+                          )}
+                          {project.url && (
+                            <a 
+                              href={project.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              View Project
+                              <ExternalLink size={14} className="ml-1" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Code size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No projects added yet</p>
+                    <Button variant="outline" className="mt-3">
+                      <Plus size={16} className="mr-2" />
+                      Add project
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Skills Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-xl font-semibold">Skills</h2>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm">
+                    <Plus size={16} />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit3 size={16} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {skills.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    {skills.slice(0, 9).map((skill: string, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                            <Code size={16} className="text-blue-600" />
+                          </div>
+                          <span className="font-medium text-gray-900">{skill}</span>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                    {skills.length > 9 && (
+                      <Button variant="outline" className="mt-2">
+                        Show all {skills.length} skills
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Award size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No skills added yet</p>
+                    <Button variant="outline" className="mt-3">
+                      <Plus size={16} className="mr-2" />
+                      Add skill
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="space-y-6">
+            {/* Contact Info Card */}
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold">Contact info</h3>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Mail size={16} className="text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-medium">{studentProfile?.email || user?.email}</p>
+                  </div>
+                </div>
+                {jobPrefs.phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone size={16} className="text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Phone</p>
+                      <p className="font-medium">{jobPrefs.phone}</p>
+                    </div>
+                  </div>
+                )}
+                {jobPrefs.portfolio_url && (
+                  <div className="flex items-center gap-3">
+                    <LinkIcon size={16} className="text-gray-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Portfolio</p>
+                      <a 
+                        href={jobPrefs.portfolio_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:underline"
+                      >
+                        View Portfolio
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Certifications Card */}
+            {studentProfile?.certifications_and_licenses && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <h3 className="font-semibold">Licenses & certifications</h3>
+                  <Button variant="ghost" size="sm">
+                    <Plus size={16} />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Array.isArray(studentProfile.certifications_and_licenses) ? (
+                      studentProfile.certifications_and_licenses.map((cert: any, index: number) => (
+                        <div key={index} className="flex gap-3">
+                          <div className="w-10 h-10 bg-yellow-100 rounded flex items-center justify-center flex-shrink-0">
+                            <Award size={16} className="text-yellow-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">
+                              {cert.name || cert.title || `Certification ${index + 1}`}
+                            </h4>
+                            {cert.issuer && (
+                              <p className="text-sm text-gray-600">{cert.issuer}</p>
+                            )}
+                            {cert.date && (
+                              <p className="text-xs text-gray-500">Issued {cert.date}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-600">No certifications added yet</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Job Preferences Card */}
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold">Job preferences</h3>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(jobPrefs).map(([key, value]) => (
+                  <div key={key}>
+                    <p className="text-sm text-gray-600 capitalize">
+                      {key.replace(/_/g, ' ')}
+                    </p>
+                    <p className="font-medium text-gray-900">
+                      {Array.isArray(value) ? value.join(', ') : 
+                       typeof value === 'string' ? value : JSON.stringify(value)}
+                    </p>
+                  </div>
                 ))}
-                {renderArrayData(studentProfile.skills, []).length === 0 && (
-                  <p className="text-slate-500 italic">No skills listed</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
 
-        {/* Projects Section */}
-        {studentProfile?.projects && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Briefcase size={20} className="text-green-600" />
-                <h2 className="text-xl font-semibold text-slate-800">Projects</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Array.isArray(studentProfile.projects) && studentProfile.projects.length > 0 ? (
-                  studentProfile.projects.map((project: any, index: number) => (
-                    <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <h3 className="font-semibold text-slate-800 mb-2">
-                        {project.name || project.title || `Project ${index + 1}`}
-                      </h3>
-                      {project.description && (
-                        <p className="text-sm text-slate-600 mb-3">{project.description}</p>
-                      )}
-                      {project.technologies && (
-                        <div className="flex flex-wrap gap-1">
-                          {Array.isArray(project.technologies) ? 
-                            project.technologies.map((tech: string, techIndex: number) => (
-                              <Badge
-                                key={techIndex}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {tech}
-                              </Badge>
-                            )) : (
-                              <Badge variant="outline" className="text-xs">
-                                {project.technologies}
-                              </Badge>
-                            )
-                          }
-                        </div>
-                      )}
-                      {project.url && (
-                        <div className="mt-2">
-                          <a 
-                            href={project.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-sm underline"
-                          >
-                            View Project
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-500 italic">No projects listed</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Experience Section */}
-        {studentProfile?.experience && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Building2 size={20} className="text-purple-600" />
-                <h2 className="text-xl font-semibold text-slate-800">Experience</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {typeof studentProfile.experience === 'object' ? (
-                  Object.entries(studentProfile.experience).map(([key, value]) => (
-                    <div key={key} className="border-l-4 border-purple-200 pl-4">
-                      <h3 className="font-medium text-slate-800 capitalize mb-1">
-                        {key.replace(/_/g, ' ')}
-                      </h3>
-                      <p className="text-slate-600 text-sm">
-                        {typeof value === 'string' ? value : JSON.stringify(value)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-600">{studentProfile.experience}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Certifications and Licenses Section */}
-        {studentProfile?.certifications_and_licenses && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Award size={20} className="text-yellow-600" />
-                <h2 className="text-xl font-semibold text-slate-800">Certifications & Licenses</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {Array.isArray(studentProfile.certifications_and_licenses) ? (
-                  studentProfile.certifications_and_licenses.map((cert: any, index: number) => (
-                    <div key={index} className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <h3 className="font-medium text-slate-800">
-                        {cert.name || cert.title || `Certification ${index + 1}`}
-                      </h3>
-                      {cert.issuer && (
-                        <p className="text-sm text-slate-600">Issued by: {cert.issuer}</p>
-                      )}
-                      {cert.date && (
-                        <p className="text-sm text-slate-500">Date: {cert.date}</p>
-                      )}
-                      {cert.description && (
-                        <p className="text-sm text-slate-600 mt-1">{cert.description}</p>
-                      )}
-                    </div>
-                  ))
-                ) : typeof studentProfile.certifications_and_licenses === 'object' ? (
-                  Object.entries(studentProfile.certifications_and_licenses).map(([key, value]) => (
-                    <div key={key} className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <h3 className="font-medium text-slate-800 capitalize">
-                        {key.replace(/_/g, ' ')}
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        {typeof value === 'string' ? value : JSON.stringify(value)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-600">{studentProfile.certifications_and_licenses}</p>
-                )}
-                {(!studentProfile.certifications_and_licenses || 
-                  (Array.isArray(studentProfile.certifications_and_licenses) && studentProfile.certifications_and_licenses.length === 0)) && (
-                  <p className="text-slate-500 italic">No certifications or licenses listed</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Job Preferences Section */}
-        {studentProfile?.job_preferences && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <GraduationCap size={20} className="text-indigo-600" />
-                <h2 className="text-xl font-semibold text-slate-800">Job Preferences</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {typeof studentProfile.job_preferences === 'object' ? (
-                  Object.entries(studentProfile.job_preferences).map(([key, value]) => (
-                    <div key={key} className="p-3 bg-indigo-50 rounded-lg">
-                      <h3 className="font-medium text-slate-800 capitalize mb-1">
-                        {key.replace(/_/g, ' ')}
-                      </h3>
-                      <p className="text-slate-600 text-sm">
-                        {Array.isArray(value) ? value.join(', ') : 
-                         typeof value === 'string' ? value : JSON.stringify(value)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-600">{studentProfile.job_preferences}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Debug Info (only in development) */}
-        {import.meta.env.DEV && (
-          <Card className="border-dashed border-slate-300">
-            <CardHeader>
-              <h2 className="text-lg font-semibold text-slate-600">Debug Info</h2>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xs font-mono bg-slate-100 p-3 rounded overflow-auto">
-                <p><strong>User:</strong> {JSON.stringify(user, null, 2)}</p>
-                <p><strong>Student Profile:</strong> {JSON.stringify(studentProfile, null, 2)}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            {/* Analytics Card */}
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold">Analytics</h3>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Profile views</span>
+                  <span className="font-semibold text-blue-600">12</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Search appearances</span>
+                  <span className="font-semibold text-blue-600">8</span>
+                </div>
+                <Separator />
+                <Button variant="link" className="p-0 h-auto text-sm text-blue-600">
+                  View all analytics
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -79,10 +79,13 @@ const Profile = () => {
     return [data]
   }
 
-  // Helper function to get initials
+  // Helper function to get initials from the logged-in user's name
   const getInitials = () => {
     if (studentProfile?.first_name && studentProfile?.last_name) {
-      return `${studentProfile.first_name.charAt(0)}${studentProfile.last_name.charAt(0)}`
+      return `${studentProfile.first_name.charAt(0).toUpperCase()}${studentProfile.last_name.charAt(0).toUpperCase()}`
+    }
+    if (studentProfile?.first_name) {
+      return studentProfile.first_name.charAt(0).toUpperCase()
     }
     if (studentProfile?.email) {
       return studentProfile.email.charAt(0).toUpperCase()
@@ -93,6 +96,7 @@ const Profile = () => {
     return 'U'
   }
 
+  // Get the full name of the logged-in user
   const getFullName = () => {
     if (studentProfile?.first_name && studentProfile?.last_name) {
       return `${studentProfile.first_name} ${studentProfile.last_name}`
@@ -100,7 +104,27 @@ const Profile = () => {
     if (studentProfile?.first_name) {
       return studentProfile.first_name
     }
+    if (studentProfile?.last_name) {
+      return studentProfile.last_name
+    }
+    // Fallback to email if no name is available
+    if (studentProfile?.email) {
+      return studentProfile.email.split('@')[0]
+    }
+    if (user?.email) {
+      return user.email.split('@')[0]
+    }
     return 'Student Profile'
+  }
+
+  // Get user's email (prioritize student profile, fallback to auth user)
+  const getUserEmail = () => {
+    return studentProfile?.email || user?.email || 'No email available'
+  }
+
+  // Get user's student ID
+  const getStudentId = () => {
+    return studentProfile?.student_id || user?.student_id || 'No student ID'
   }
 
   // Parse data from database
@@ -116,7 +140,7 @@ const Profile = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading profile...</p>
+          <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
     )
@@ -149,7 +173,12 @@ const Profile = () => {
             <span className="font-medium">Back</span>
           </button>
           
-          <div className="flex items-center gap-3">
+          {/* Show current user info in header */}
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-900">{getFullName()}</p>
+              <p className="text-xs text-gray-500">{getStudentId()}</p>
+            </div>
             <Button
               onClick={handleSignOut}
               variant="outline"
@@ -187,7 +216,7 @@ const Profile = () => {
                   <Avatar className="w-40 h-40 border-4 border-white shadow-lg">
                     <AvatarImage
                       src={studentProfile?.profile_image}
-                      alt="Profile"
+                      alt={`${getFullName()}'s profile picture`}
                     />
                     <AvatarFallback className="text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {getInitials()}
@@ -202,16 +231,27 @@ const Profile = () => {
                   </Button>
                 </div>
 
-                {/* Profile Info */}
+                {/* Profile Info - Prominently display user's name */}
                 <div className="flex-1 pt-4 sm:pt-8">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                      {/* User's Full Name - Large and prominent */}
+                      <h1 className="text-4xl font-bold text-gray-900 mb-2">
                         {getFullName()}
                       </h1>
-                      <p className="text-lg text-gray-700 mb-2">
-                        {jobPrefs.desired_role || 'Student'} • {studentProfile?.student_id || user?.student_id}
-                      </p>
+                      
+                      {/* Student ID and Role */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <p className="text-lg text-gray-700 font-medium">
+                          {jobPrefs.desired_role || 'Student'}
+                        </p>
+                        <span className="text-gray-400">•</span>
+                        <p className="text-lg text-blue-600 font-medium">
+                          {getStudentId()}
+                        </p>
+                      </div>
+                      
+                      {/* Location and connections */}
                       <div className="flex items-center text-gray-600 text-sm mb-3">
                         <MapPin size={16} className="mr-1" />
                         <span>{jobPrefs.location || 'Location not specified'}</span>
@@ -220,16 +260,20 @@ const Profile = () => {
                           {studentProfile?.email ? '500+ connections' : 'Contact info'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 mb-4">
+                      
+                      {/* Company/Institution */}
+                      <div className="flex items-center gap-2 mb-3">
                         <Building2 size={16} className="text-gray-500" />
                         <span className="text-sm text-gray-600">
                           {jobPrefs.company_preference || 'Open to opportunities'}
                         </span>
                       </div>
+                      
+                      {/* Email */}
                       <div className="flex items-center gap-2 mb-4">
                         <Mail size={16} className="text-gray-500" />
                         <span className="text-sm text-gray-600">
-                          {studentProfile?.email || user?.email}
+                          {getUserEmail()}
                         </span>
                       </div>
                     </div>
@@ -545,10 +589,11 @@ const Profile = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-xs font-mono text-gray-500 space-y-2">
+                  <p><strong>Logged-in User:</strong> {getFullName()}</p>
                   <p><strong>User ID:</strong> {user?.student_id}</p>
-                  <p><strong>Email:</strong> {user?.email}</p>
+                  <p><strong>Email:</strong> {getUserEmail()}</p>
                   <p><strong>Profile Loaded:</strong> {studentProfile ? 'Yes' : 'No'}</p>
-                  <p><strong>Student ID:</strong> {studentProfile?.student_id}</p>
+                  <p><strong>Student ID:</strong> {getStudentId()}</p>
                   <p><strong>Database ID:</strong> {studentProfile?.id}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
                   <Button 

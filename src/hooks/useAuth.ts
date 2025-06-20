@@ -26,7 +26,7 @@ export const useAuth = () => {
         .select('*')
         .eq('email', email)
         .eq('password', password)
-        .single()
+        .maybeSingle()
 
       if (authError || !authData) {
         setAuthState(prev => ({ 

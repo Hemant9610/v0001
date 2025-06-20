@@ -477,47 +477,6 @@ const Profile = () => {
                 </CardContent>
               </Card>
             )}
-
-            {/* Job Preferences Card */}
-            <Card>
-              <CardHeader>
-                <h3 className="font-semibold">Job preferences</h3>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {Object.entries(jobPrefs).map(([key, value]) => (
-                  <div key={key}>
-                    <p className="text-sm text-gray-600 capitalize">
-                      {key.replace(/_/g, ' ')}
-                    </p>
-                    <p className="font-medium text-gray-900">
-                      {Array.isArray(value) ? value.join(', ') : 
-                       typeof value === 'string' ? value : JSON.stringify(value)}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Analytics Card */}
-            <Card>
-              <CardHeader>
-                <h3 className="font-semibold">Analytics</h3>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Profile views</span>
-                  <span className="font-semibold text-blue-600">12</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Search appearances</span>
-                  <span className="font-semibold text-blue-600">8</span>
-                </div>
-                <Separator />
-                <Button variant="link" className="p-0 h-auto text-sm text-blue-600">
-                  View all analytics
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

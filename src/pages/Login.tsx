@@ -26,12 +26,38 @@ const Login = () => {
     setLoading(true)
     setError('')
 
-    const { error } = await signIn(email, password)
-    
-    if (error) {
-      setError(error.message)
-    } else {
-      navigate('/')
+    // Basic validation
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      setLoading(false)
+      return
+    }
+
+    if (!password) {
+      setError('Please enter your password')
+      setLoading(false)
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await signIn(email, password)
+      
+      if (error) {
+        setError(error.message)
+      } else {
+        navigate('/')
+      }
+    } catch (err) {
+      console.error('Login error:', err)
+      setError('An unexpected error occurred. Please try again.')
     }
     
     setLoading(false)
@@ -68,6 +94,7 @@ const Login = () => {
                 placeholder="Enter your email"
                 required
                 className="h-12"
+                disabled={loading}
               />
             </div>
             
@@ -81,6 +108,7 @@ const Login = () => {
                 placeholder="Enter your password"
                 required
                 className="h-12"
+                disabled={loading}
               />
             </div>
             
@@ -102,6 +130,9 @@ const Login = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-500">
               Use your existing credentials to access the platform
+            </p>
+            <p className="text-xs text-slate-400 mt-2">
+              Make sure you have an account created in Supabase Auth
             </p>
           </div>
         </CardContent>

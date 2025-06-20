@@ -21,9 +21,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const loadStudentProfile = async (userId: string) => {
-    const { data, error } = await getStudentProfile(userId)
-    if (!error && data) {
-      setStudentProfile(data)
+    try {
+      const { data, error } = await getStudentProfile(userId)
+      if (!error && data) {
+        setStudentProfile(data)
+      } else if (error) {
+        console.error('Error loading student profile:', error)
+      }
+    } catch (err) {
+      console.error('Unexpected error loading student profile:', err)
     }
   }
 
@@ -35,7 +41,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error)
+      }
+      
       setSession(session)
       setUser(session?.user ?? null)
       
@@ -49,7 +59,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event)
+      
       setSession(session)
       setUser(session?.user ?? null)
       
@@ -66,16 +78,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      
+      if (error) {
+        console.error('Sign in error:', error)
+        // Provide more user-friendly error messages
+        let userMessage = error.message
+        if (error.message.includes('Invalid login credentials')) {
+          userMessage = 'Invalid email or password. Please check your credentials and try again.'
+        } else if (error.message.includes('Email not confirmed')) {
+          userMessage = 'Please check your email and confirm your account before signing in.'
+        } else if (error.message.includes('Too many requests')) {
+          userMessage = 'Too many login attempts. Please wait a moment before trying again.'
+        }
+        return { error: { ...error, message: userMessage } }
+      }
+      
+      return { error: null }
+    } catch (err) {
+      console.error('Unexpected sign in error:', err)
+      return { error: { message: 'An unexpected error occurred. Please try again.' } }
+    }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setStudentProfile(null)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Sign out error:', error)
+      }
+      setStudentProfile(null)
+    } catch (err) {
+      console.error('Unexpected sign out error:', err)
+    }
   }
 
   const value = {

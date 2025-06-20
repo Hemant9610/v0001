@@ -64,50 +64,80 @@ const Profile = () => {
     navigate('/login')
   }
 
-  // Enhanced helper function to safely render array or object data
-  const renderArrayData = (data: any, fallback = []) => {
-    console.log('🔍 Processing data:', { data, type: typeof data, isArray: Array.isArray(data) })
+  // Enhanced helper function to safely render JSONB data from database
+  const renderJSONBData = (data: any, fallback = []) => {
+    console.log('🔍 Processing JSONB data:', { 
+      data, 
+      type: typeof data, 
+      isArray: Array.isArray(data),
+      isNull: data === null,
+      isUndefined: data === undefined,
+      stringified: JSON.stringify(data)
+    })
     
-    if (!data) {
+    if (!data || data === null || data === undefined) {
       console.log('❌ No data provided, returning fallback')
       return fallback
     }
     
+    // Handle direct arrays
     if (Array.isArray(data)) {
       console.log('✅ Data is array, returning as-is:', data)
-      return data
+      return data.filter(item => item !== null && item !== undefined && item !== '')
     }
     
+    // Handle JSONB string format
     if (typeof data === 'string') {
       try {
         const parsed = JSON.parse(data)
         console.log('✅ Parsed JSON string:', parsed)
+        
         if (Array.isArray(parsed)) {
-          return parsed
+          return parsed.filter(item => item !== null && item !== undefined && item !== '')
         }
-        // If parsed object has array values, extract them
-        if (typeof parsed === 'object') {
-          const values = Object.values(parsed).flat().filter(Boolean)
-          console.log('✅ Extracted values from object:', values)
+        
+        // If parsed object, extract values
+        if (typeof parsed === 'object' && parsed !== null) {
+          const values = Object.values(parsed).flat().filter(item => 
+            item !== null && item !== undefined && item !== ''
+          )
+          console.log('✅ Extracted values from parsed object:', values)
           return values
         }
-        return [parsed]
+        
+        return [parsed].filter(item => item !== null && item !== undefined && item !== '')
       } catch (err) {
         console.log('⚠️ Failed to parse JSON, treating as single string:', data)
-        return [data]
+        return data.trim() ? [data] : fallback
       }
     }
     
-    if (typeof data === 'object') {
-      // Handle object with array values or convert to array
+    // Handle JSONB object format
+    if (typeof data === 'object' && data !== null) {
+      // Check if it's a PostgreSQL JSONB object with array values
       const values = Object.values(data)
-      const flatValues = values.flat().filter(Boolean)
-      console.log('✅ Extracted values from object:', flatValues)
-      return flatValues.length > 0 ? flatValues : [JSON.stringify(data)]
+      const flatValues = values.flat().filter(item => 
+        item !== null && item !== undefined && item !== ''
+      )
+      console.log('✅ Extracted values from JSONB object:', flatValues)
+      
+      if (flatValues.length > 0) {
+        return flatValues
+      }
+      
+      // If no valid values, try to stringify and return as single item
+      const stringified = JSON.stringify(data)
+      return stringified !== '{}' && stringified !== 'null' ? [stringified] : fallback
     }
     
-    console.log('⚠️ Converting single value to array:', [data])
-    return [data]
+    // Handle primitive values
+    if (typeof data === 'string' || typeof data === 'number') {
+      const stringValue = String(data).trim()
+      return stringValue ? [stringValue] : fallback
+    }
+    
+    console.log('⚠️ Unhandled data type, returning fallback:', fallback)
+    return fallback
   }
 
   // Helper function to get initials from the logged-in user's name
@@ -158,32 +188,65 @@ const Profile = () => {
     return studentProfile?.student_id || user?.student_id || 'No student ID'
   }
 
-  // Parse data from database with enhanced processing and detailed logging
+  // Parse JSONB data from database with enhanced processing and detailed logging
   console.log('🔍 Raw studentProfile data:', studentProfile)
   console.log('🔍 Raw skills data:', studentProfile?.skills)
   console.log('🔍 Raw projects data:', studentProfile?.projects)
   console.log('🔍 Raw experience data:', studentProfile?.experience)
 
-  const skills = renderArrayData(studentProfile?.skills, [])
-  const projects = renderArrayData(studentProfile?.projects, [])
+  const skills = renderJSONBData(studentProfile?.skills, [])
+  const projects = renderJSONBData(studentProfile?.projects, [])
   const experience = studentProfile?.experience || {}
-  const certifications = renderArrayData(studentProfile?.certifications_and_licenses, [])
+  const certifications = renderJSONBData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
 
   console.log('✅ Processed skills:', skills)
   console.log('✅ Processed projects:', projects)
   console.log('✅ Processed experience:', experience)
+  console.log('✅ Processed certifications:', certifications)
 
-  // Enhanced skill categorization
+  // Enhanced skill categorization with more comprehensive matching
   const categorizeSkills = (skillsList: string[]) => {
     console.log('🔍 Categorizing skills:', skillsList)
     
     const categories = {
-      'Programming Languages': ['JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin'],
-      'Frontend Technologies': ['React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'jQuery'],
-      'Backend Technologies': ['Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Laravel', 'Rails'],
-      'Databases': ['MongoDB', 'MySQL', 'PostgreSQL', 'Redis', 'SQLite', 'Firebase'],
-      'Cloud & DevOps': ['AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git'],
+      'Programming Languages': [
+        'JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 
+        'Swift', 'Kotlin', 'Scala', 'R', 'MATLAB', 'Perl', 'Dart', 'C', 'Assembly', 'Haskell',
+        'Clojure', 'F#', 'VB.NET', 'Objective-C', 'Shell', 'Bash', 'PowerShell'
+      ],
+      'Frontend Technologies': [
+        'React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'SCSS', 'LESS',
+        'jQuery', 'Svelte', 'Next.js', 'Nuxt.js', 'Gatsby', 'Webpack', 'Vite', 'Parcel',
+        'Material-UI', 'Ant Design', 'Chakra UI', 'Styled Components', 'Emotion'
+      ],
+      'Backend Technologies': [
+        'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Laravel', 'Rails', 'ASP.NET',
+        'FastAPI', 'Koa', 'Hapi', 'Nest.js', 'Strapi', 'GraphQL', 'REST API', 'gRPC'
+      ],
+      'Databases': [
+        'MongoDB', 'MySQL', 'PostgreSQL', 'Redis', 'SQLite', 'Firebase', 'Firestore',
+        'DynamoDB', 'Cassandra', 'Neo4j', 'InfluxDB', 'CouchDB', 'MariaDB', 'Oracle',
+        'SQL Server', 'Elasticsearch'
+      ],
+      'Cloud & DevOps': [
+        'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git', 'GitHub', 'GitLab',
+        'CircleCI', 'Travis CI', 'Terraform', 'Ansible', 'Chef', 'Puppet', 'Vagrant',
+        'Heroku', 'Vercel', 'Netlify', 'DigitalOcean'
+      ],
+      'Mobile Development': [
+        'React Native', 'Flutter', 'iOS', 'Android', 'Xamarin', 'Ionic', 'Cordova',
+        'Swift', 'Kotlin', 'Objective-C', 'Java'
+      ],
+      'Data Science & AI': [
+        'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Scikit-learn',
+        'Pandas', 'NumPy', 'Matplotlib', 'Seaborn', 'Jupyter', 'R', 'MATLAB',
+        'Data Analysis', 'Statistics', 'Big Data', 'Hadoop', 'Spark'
+      ],
+      'Design & UI/UX': [
+        'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator', 'InDesign',
+        'UI Design', 'UX Design', 'Prototyping', 'Wireframing', 'User Research'
+      ],
       'Other Skills': []
     }
 
@@ -191,14 +254,20 @@ const Profile = () => {
     
     skillsList.forEach(skill => {
       let placed = false
+      const skillLower = skill.toLowerCase()
+      
       for (const [category, keywords] of Object.entries(categories)) {
-        if (keywords.some(keyword => skill.toLowerCase().includes(keyword.toLowerCase()))) {
+        if (keywords.some(keyword => 
+          skillLower.includes(keyword.toLowerCase()) || 
+          keyword.toLowerCase().includes(skillLower)
+        )) {
           if (!categorized[category]) categorized[category] = []
           categorized[category].push(skill)
           placed = true
           break
         }
       }
+      
       if (!placed) {
         if (!categorized['Other Skills']) categorized['Other Skills'] = []
         categorized['Other Skills'].push(skill)
@@ -416,7 +485,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Skills Section with Better Data Handling */}
+          {/* Enhanced Skills Section with JSONB Data Handling */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -438,14 +507,24 @@ const Profile = () => {
               {/* Debug Info for Skills (Development Only) */}
               {import.meta.env.DEV && (
                 <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info</h4>
+                  <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info (JSONB Format)</h4>
                   <div className="text-xs font-mono text-yellow-700 space-y-1">
                     <p><strong>Raw skills data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
+                    <p><strong>Raw data type:</strong> {typeof studentProfile?.skills}</p>
+                    <p><strong>Is array:</strong> {Array.isArray(studentProfile?.skills) ? 'Yes' : 'No'}</p>
+                    <p><strong>Is null:</strong> {studentProfile?.skills === null ? 'Yes' : 'No'}</p>
                     <p><strong>Processed skills:</strong> {JSON.stringify(skills)}</p>
                     <p><strong>Skills count:</strong> {skills.length}</p>
-                    <p><strong>Skills type:</strong> {typeof studentProfile?.skills}</p>
-                    <p><strong>Is array:</strong> {Array.isArray(studentProfile?.skills) ? 'Yes' : 'No'}</p>
+                    <p><strong>Sample skill:</strong> {skills[0] || 'None'}</p>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refreshStudentProfile}
+                    className="mt-2"
+                  >
+                    🔄 Refresh Profile Data
+                  </Button>
                 </div>
               )}
 
@@ -475,7 +554,7 @@ const Profile = () => {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                       <Code size={20} className="text-blue-600" />
-                      All Skills
+                      All Skills from Database
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {skills.map((skill: string, index: number) => (
@@ -887,7 +966,7 @@ const Profile = () => {
           {import.meta.env.DEV && (
             <Card className="border-dashed border-gray-300">
               <CardHeader>
-                <h2 className="text-sm font-mono text-gray-500">Debug Info (Dev Only)</h2>
+                <h2 className="text-sm font-mono text-gray-500">Debug Info (Dev Only) - JSONB Format</h2>
               </CardHeader>
               <CardContent>
                 <div className="text-xs font-mono text-gray-500 space-y-2">
@@ -901,7 +980,9 @@ const Profile = () => {
                   <p><strong>Projects Count:</strong> {projects.length}</p>
                   <p><strong>Experience Keys:</strong> {Object.keys(experience).length}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
+                  <p><strong>Raw Skills Data Type:</strong> {typeof studentProfile?.skills}</p>
                   <p><strong>Raw Skills Data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
+                  <p><strong>Processed Skills:</strong> {JSON.stringify(skills)}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 

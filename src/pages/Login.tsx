@@ -129,10 +129,10 @@ const Login = () => {
           
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-500">
-              Use your existing credentials to access the platform
+              Use your credentials from the v0001_auth table
             </p>
             <p className="text-xs text-slate-400 mt-2">
-              Make sure you have an account created in Supabase Auth
+              Make sure your email and password exist in the database
             </p>
           </div>
         </CardContent>

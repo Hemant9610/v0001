@@ -62,11 +62,11 @@ const Profile = () => {
                 <h1 className="text-3xl font-semibold text-slate-800 mb-1">
                   {studentProfile?.first_name && studentProfile?.last_name 
                     ? `${studentProfile.first_name} ${studentProfile.last_name}`
-                    : user?.user_metadata?.full_name || 'User Profile'
+                    : 'Student Profile'
                   }
                 </h1>
                 <p className="text-base text-slate-600 mb-2">
-                  {studentProfile?.job_preferences?.role || 'Student Profile'}
+                  Student ID: {user?.student_id || 'Not available'}
                 </p>
 
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-2">

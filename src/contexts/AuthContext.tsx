@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User, Session } from '@supabase/supabase-js'
-import { supabase, getStudentProfile, StudentProfile } from '@/lib/supabase'
+import { customAuth, CustomAuthUser } from '@/lib/customAuth'
+import { StudentProfile } from '@/lib/supabase'
 
 interface AuthContextType {
-  user: User | null
-  session: Session | null
+  user: CustomAuthUser | null
   studentProfile: StudentProfile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
@@ -15,14 +14,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<CustomAuthUser | null>(null)
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadStudentProfile = async (userId: string) => {
+  const loadStudentProfile = async (student_id: string) => {
     try {
-      const { data, error } = await getStudentProfile(userId)
+      const { data, error } = await customAuth.getStudentProfile(student_id)
       if (!error && data) {
         setStudentProfile(data)
       } else if (error) {
@@ -35,68 +33,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshStudentProfile = async () => {
     if (user) {
-      await loadStudentProfile(user.id)
+      await loadStudentProfile(user.student_id)
     }
   }
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error)
+    // Check if user is stored in localStorage
+    const storedUser = localStorage.getItem('profeshare_user')
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser)
+        setUser(parsedUser)
+        loadStudentProfile(parsedUser.student_id)
+      } catch (err) {
+        console.error('Error parsing stored user:', err)
+        localStorage.removeItem('profeshare_user')
       }
-      
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        loadStudentProfile(session.user.id)
-      }
-      
-      setLoading(false)
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event)
-      
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        await loadStudentProfile(session.user.id)
-      } else {
-        setStudentProfile(null)
-      }
-      
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    }
+    setLoading(false)
   }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
+      const { user: authUser, error } = await customAuth.signIn(email, password)
       
-      if (error) {
-        console.error('Sign in error:', error)
-        // Provide more user-friendly error messages
-        let userMessage = error.message
-        if (error.message.includes('Invalid login credentials')) {
-          userMessage = 'Invalid email or password. Please check your credentials and try again.'
-        } else if (error.message.includes('Email not confirmed')) {
-          userMessage = 'Please check your email and confirm your account before signing in.'
-        } else if (error.message.includes('Too many requests')) {
-          userMessage = 'Too many login attempts. Please wait a moment before trying again.'
-        }
-        return { error: { ...error, message: userMessage } }
+      if (error || !authUser) {
+        return { error: { message: error || 'Sign in failed' } }
       }
+      
+      // Store user in state and localStorage
+      setUser(authUser)
+      localStorage.setItem('profeshare_user', JSON.stringify(authUser))
+      
+      // Load student profile
+      await loadStudentProfile(authUser.student_id)
       
       return { error: null }
     } catch (err) {
@@ -107,11 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('Sign out error:', error)
-      }
+      setUser(null)
       setStudentProfile(null)
+      localStorage.removeItem('profeshare_user')
     } catch (err) {
       console.error('Unexpected sign out error:', err)
     }
@@ -119,7 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
-    session,
     studentProfile,
     loading,
     signIn,

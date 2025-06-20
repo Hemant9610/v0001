@@ -28,27 +28,17 @@ export const useAuth = () => {
         .select('*')
         .eq('email', email.trim())
         .eq('password', password.trim())
-        .single()
+        .maybeSingle()
 
       console.log('Auth query result:', { authData, authError })
 
       if (authError) {
         console.error('Auth query error:', authError)
-        
-        // Check if it's a "no rows returned" error
-        if (authError.code === 'PGRST116') {
-          setAuthState(prev => ({ 
-            ...prev, 
-            isLoading: false, 
-            error: 'Invalid email or password' 
-          }))
-        } else {
-          setAuthState(prev => ({ 
-            ...prev, 
-            isLoading: false, 
-            error: 'Database connection error' 
-          }))
-        }
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Database connection error' 
+        }))
         return false
       }
 

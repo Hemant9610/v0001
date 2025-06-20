@@ -4,6 +4,11 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing Supabase environment variables!')
+  console.error('Please create a .env file in your project root with:')
+  console.error('VITE_SUPABASE_URL=your_supabase_project_url')
+  console.error('VITE_SUPABASE_ANON_KEY=your_supabase_anon_key')
+  console.error('You can find these values in your Supabase project settings under "API"')
   throw new Error('Missing Supabase environment variables. Please check your .env file.')
 }
 
@@ -11,7 +16,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
 try {
   new URL(supabaseUrl)
 } catch (err) {
+  console.error('❌ Invalid VITE_SUPABASE_URL format:', supabaseUrl)
+  console.error('Expected format: https://your-project-id.supabase.co')
   throw new Error('Invalid VITE_SUPABASE_URL format. Please check your .env file.')
+}
+
+// Check for placeholder values
+if (supabaseUrl.includes('your-project-id') || supabaseUrl.includes('your_supabase_project_url')) {
+  console.error('❌ VITE_SUPABASE_URL contains placeholder values!')
+  console.error('Please replace with your actual Supabase project URL')
+  throw new Error('VITE_SUPABASE_URL contains placeholder values. Please update your .env file.')
+}
+
+if (supabaseAnonKey.includes('your-anon-key') || supabaseAnonKey.includes('your_supabase_anon_key')) {
+  console.error('❌ VITE_SUPABASE_ANON_KEY contains placeholder values!')
+  console.error('Please replace with your actual Supabase anon key')
+  throw new Error('VITE_SUPABASE_ANON_KEY contains placeholder values. Please update your .env file.')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

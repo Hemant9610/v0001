@@ -5,6 +5,26 @@ export const debugAuth = {
   // Test database connection
   testConnection: async () => {
     console.log('🔍 Testing Supabase connection...')
+    
+    // First check if environment variables are properly configured
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('❌ Missing environment variables!')
+      console.error('Please check your .env file and ensure you have:')
+      console.error('- VITE_SUPABASE_URL')
+      console.error('- VITE_SUPABASE_ANON_KEY')
+      return false
+    }
+    
+    if (supabaseUrl.includes('your-project-id') || supabaseAnonKey.includes('your-anon-key')) {
+      console.error('❌ Environment variables contain placeholder values!')
+      console.error('Please update your .env file with actual Supabase credentials.')
+      console.error('You can find these in your Supabase project settings under "API".')
+      return false
+    }
+    
     try {
       const { data, error } = await supabase
         .from('v0001_auth')
@@ -12,6 +32,10 @@ export const debugAuth = {
       
       if (error) {
         console.error('❌ Connection failed:', error)
+        console.error('This might indicate:')
+        console.error('- Incorrect Supabase URL or API key')
+        console.error('- Network connectivity issues')
+        console.error('- Supabase project is paused or deleted')
         return false
       }
       
@@ -19,6 +43,10 @@ export const debugAuth = {
       return true
     } catch (err) {
       console.error('❌ Connection error:', err)
+      console.error('This typically means:')
+      console.error('- Invalid Supabase URL format')
+      console.error('- Network is blocked or offline')
+      console.error('- CORS issues (check Supabase project settings)')
       return false
     }
   },
@@ -198,6 +226,13 @@ export const debugAuth = {
     const connectionOk = await debugAuth.testConnection()
     if (!connectionOk) {
       console.log('❌ Diagnostic failed: No database connection')
+      console.log('')
+      console.log('🔧 To fix this issue:')
+      console.log('1. Check your .env file in the project root')
+      console.log('2. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set')
+      console.log('3. Get these values from your Supabase project settings > API')
+      console.log('4. Restart the development server after updating .env')
+      console.log('=====================================')
       return
     }
     

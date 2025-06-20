@@ -13,10 +13,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export const useAuth = () => {
+export const useSupabaseAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error('useSupabaseAuth must be used within an AuthProvider')
   }
   return context
 }
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signIn({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })

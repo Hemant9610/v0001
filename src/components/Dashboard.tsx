@@ -1,12 +1,12 @@
 import React from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useSupabaseAuth } from '../contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { LogOut, User } from 'lucide-react'
 
 export const Dashboard: React.FC = () => {
-  const { user, signOut } = useAuth()
+  const { user, signOut } = useSupabaseAuth()
 
   const handleSignOut = async () => {
     await signOut()
@@ -93,7 +93,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   )

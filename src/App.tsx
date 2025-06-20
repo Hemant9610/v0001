@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -13,14 +13,15 @@ import Login from "./pages/Login";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, user, profile } = useAuth();
+  const [loginTrigger, setLoginTrigger] = useState(0);
 
   const handleLogin = () => {
-    setIsLoggedIn(true);
+    setLoginTrigger(prev => prev + 1);
   };
 
-  // Show login page if user is not logged in
-  if (!isLoggedIn) {
+  // Show login page if user is not authenticated
+  if (!isAuthenticated) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
@@ -32,7 +33,7 @@ const App = () => {
     );
   }
 
-  // Show main app if user is logged in
+  // Show main app if user is authenticated
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

@@ -1,9 +1,11 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -12,15 +14,27 @@ interface LoginProps {
 const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { login, isLoading, error, clearError } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple validation - in a real app, you'd validate credentials
-    if (email && password) {
-      console.log('Login attempted with:', { email, password });
+    
+    if (!email || !password) {
+      return;
+    }
+
+    const success = await login(email, password);
+    if (success) {
       onLogin();
     }
   };
+
+  // Clear error when user starts typing
+  useEffect(() => {
+    if (error && (email || password)) {
+      clearError();
+    }
+  }, [email, password, error, clearError]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
@@ -42,6 +56,13 @@ const Login = ({ onLogin }: LoginProps) => {
         </CardHeader>
         
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -53,6 +74,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your email"
                 required
                 className="h-12"
+                disabled={isLoading}
               />
             </div>
             
@@ -66,20 +88,29 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your password"
                 required
                 className="h-12"
+                disabled={isLoading}
               />
             </div>
             
             <Button 
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 mt-6"
+              disabled={isLoading || !email || !password}
             >
-              Sign In
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </Button>
           </form>
           
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-500">
-              Demo: Use any email and password to continue
+              Use your registered email and password to continue
             </p>
           </div>
         </CardContent>

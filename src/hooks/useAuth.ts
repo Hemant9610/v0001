@@ -22,17 +22,26 @@ export const useAuth = () => {
     try {
       console.log('Attempting login with:', { email, password })
 
-      // Query the v0001_auth table for matching credentials
-      const { data: authData, error: authError } = await supabase
+      // First, let's check what data exists in the auth table
+      const { data: allAuthData, error: allAuthError } = await supabase
+        .from('v0001_auth')
+        .select('*')
+        .limit(10)
+
+      console.log('All auth records (first 10):', allAuthData)
+      console.log('Auth table query error:', allAuthError)
+
+      // Now try to find matching email first
+      const { data: emailMatches, error: emailError } = await supabase
         .from('v0001_auth')
         .select('*')
         .eq('email', email.trim())
-        .eq('password', password)
 
-      console.log('Auth query result:', { authData, authError })
+      console.log('Email matches:', emailMatches)
+      console.log('Email query error:', emailError)
 
-      if (authError) {
-        console.error('Auth query error:', authError)
+      if (emailError) {
+        console.error('Email query error:', emailError)
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
@@ -41,45 +50,68 @@ export const useAuth = () => {
         return false
       }
 
-      if (!authData || authData.length === 0) {
+      if (!emailMatches || emailMatches.length === 0) {
+        console.log('No email matches found')
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
-          error: 'Invalid email or password' 
+          error: 'Email not found in database' 
         }))
         return false
       }
 
-      // Get the first matching user
-      const user = authData[0]
-      console.log('Authenticated user:', user)
+      // Check if any of the email matches have the correct password
+      const passwordMatch = emailMatches.find(user => {
+        console.log('Comparing passwords:', { 
+          provided: password, 
+          stored: user.password,
+          match: user.password === password 
+        })
+        return user.password === password
+      })
+
+      if (!passwordMatch) {
+        console.log('Password does not match for email:', email)
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Incorrect password' 
+        }))
+        return false
+      }
+
+      console.log('Authentication successful for user:', passwordMatch)
 
       // If authentication successful, fetch the student profile
       let profileData = null
-      if (user.student_id) {
+      if (passwordMatch.student_id) {
+        console.log('Fetching student profile for student_id:', passwordMatch.student_id)
+        
         const { data: profile, error: profileError } = await supabase
           .from('v0001_student_database')
           .select('*')
-          .eq('student_id', user.student_id)
+          .eq('student_id', passwordMatch.student_id)
           .maybeSingle()
+
+        console.log('Student profile query result:', { profile, profileError })
 
         if (profileError) {
           console.warn('Could not fetch student profile:', profileError)
         } else {
           profileData = profile
-          console.log('Student profile:', profileData)
+          console.log('Student profile loaded:', profileData)
         }
       }
 
       setAuthState({
-        user: user,
+        user: passwordMatch,
         profile: profileData,
         isLoading: false,
         error: null
       })
 
       // Store auth state in localStorage for persistence
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      localStorage.setItem('auth_user', JSON.stringify(passwordMatch))
       if (profileData) {
         localStorage.setItem('student_profile', JSON.stringify(profileData))
       }

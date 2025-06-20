@@ -180,15 +180,6 @@ const Login = () => {
               </Button>
             </div>
           </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
-              Use your credentials from the v0001_auth table
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              Click "🔍" to run diagnostics or check browser console
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

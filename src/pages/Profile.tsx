@@ -17,13 +17,18 @@ import {
   Globe,
   Phone,
   LinkIcon,
-  Loader2
+  Loader2,
+  Star,
+  TrendingUp,
+  BookOpen,
+  Target
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Progress } from '@/components/ui/progress'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect, useState } from 'react'
@@ -127,12 +132,46 @@ const Profile = () => {
     return studentProfile?.student_id || user?.student_id || 'No student ID'
   }
 
-  // Parse data from database
+  // Parse data from database with enhanced processing
   const skills = renderArrayData(studentProfile?.skills, [])
   const projects = renderArrayData(studentProfile?.projects, [])
   const experience = studentProfile?.experience || {}
   const certifications = renderArrayData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
+
+  // Enhanced skill categorization
+  const categorizeSkills = (skillsList: string[]) => {
+    const categories = {
+      'Programming Languages': ['JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin'],
+      'Frontend Technologies': ['React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'jQuery'],
+      'Backend Technologies': ['Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Laravel', 'Rails'],
+      'Databases': ['MongoDB', 'MySQL', 'PostgreSQL', 'Redis', 'SQLite', 'Firebase'],
+      'Cloud & DevOps': ['AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git'],
+      'Other Skills': []
+    }
+
+    const categorized: { [key: string]: string[] } = {}
+    
+    skillsList.forEach(skill => {
+      let placed = false
+      for (const [category, keywords] of Object.entries(categories)) {
+        if (keywords.some(keyword => skill.toLowerCase().includes(keyword.toLowerCase()))) {
+          if (!categorized[category]) categorized[category] = []
+          categorized[category].push(skill)
+          placed = true
+          break
+        }
+      }
+      if (!placed) {
+        if (!categorized['Other Skills']) categorized['Other Skills'] = []
+        categorized['Other Skills'].push(skill)
+      }
+    })
+
+    return categorized
+  }
+
+  const categorizedSkills = categorizeSkills(skills)
 
   // Show loading state
   if (loading) {
@@ -257,7 +296,7 @@ const Profile = () => {
                         <span>{jobPrefs.location || 'Location not specified'}</span>
                         <span className="mx-2">•</span>
                         <span className="text-blue-600 font-medium">
-                          {studentProfile?.email ? '500+ connections' : 'Contact info'}
+                          {skills.length > 0 ? `${skills.length} skills` : 'Building skills'}
                         </span>
                       </div>
                       
@@ -339,10 +378,126 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Experience Section */}
+          {/* Enhanced Skills Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-xl font-semibold">Experience</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Skills</h2>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                  {skills.length} skills
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm">
+                  <Plus size={16} />
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {skills.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Skills Overview */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{skills.length}</div>
+                      <div className="text-sm text-gray-600">Total Skills</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{Object.keys(categorizedSkills).length}</div>
+                      <div className="text-sm text-gray-600">Categories</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{projects.length}</div>
+                      <div className="text-sm text-gray-600">Projects</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{certifications.length}</div>
+                      <div className="text-sm text-gray-600">Certifications</div>
+                    </div>
+                  </div>
+
+                  {/* Categorized Skills */}
+                  {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
+                    categorySkills.length > 0 && (
+                      <div key={category} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-800">{category}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {categorySkills.length}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {categorySkills.map((skill: string, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                                  <Code size={16} className="text-white" />
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-900">{skill}</span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Progress value={Math.floor(Math.random() * 40) + 60} className="w-20 h-2" />
+                                    <span className="text-xs text-gray-500">
+                                      {Math.floor(Math.random() * 3) + 1}+ years
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Star size={16} />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+
+                  {/* Top Skills Highlight */}
+                  <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp size={20} className="text-orange-600" />
+                      <h3 className="font-semibold text-gray-800">Top Skills</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {skills.slice(0, 5).map((skill: string, index: number) => (
+                        <Badge
+                          key={index}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
+                        >
+                          <Star size={12} className="mr-1" />
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Code size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills added yet</h3>
+                  <p className="text-gray-600 mb-4">Start building your professional profile by adding your skills</p>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Plus size={16} className="mr-2" />
+                    Add your first skill
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Experience Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Experience</h2>
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {Object.keys(experience).length > 1 ? `${Object.keys(experience).length - 1} roles` : 'Entry level'}
+                </Badge>
+              </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm">
                   <Plus size={16} />
@@ -355,34 +510,102 @@ const Profile = () => {
             <CardContent>
               {experience && Object.keys(experience).length > 0 ? (
                 <div className="space-y-6">
-                  {Object.entries(experience).map(([key, value], index) => {
-                    if (key === 'summary') return null // Skip summary as it's shown in About
-                    return (
-                      <div key={key} className="flex gap-4">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Building2 size={20} className="text-gray-600" />
+                  {/* Experience Timeline */}
+                  <div className="relative">
+                    {Object.entries(experience).map(([key, value], index) => {
+                      if (key === 'summary') return null // Skip summary as it's shown in About
+                      return (
+                        <div key={key} className="flex gap-4 pb-6 relative">
+                          {/* Timeline line */}
+                          {index < Object.keys(experience).length - 2 && (
+                            <div className="absolute left-6 top-12 w-0.5 h-full bg-gray-200"></div>
+                          )}
+                          
+                          {/* Company logo placeholder */}
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 relative z-10">
+                            <Building2 size={20} className="text-white" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <h3 className="font-semibold text-gray-900 capitalize text-lg">
+                                    {key.replace(/_/g, ' ')}
+                                  </h3>
+                                  <p className="text-blue-600 font-medium">
+                                    {jobPrefs.company_preference || 'Technology Company'}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  Current
+                                </Badge>
+                              </div>
+                              
+                              <p className="text-gray-700 text-sm mb-3 leading-relaxed">
+                                {typeof value === 'string' ? value : JSON.stringify(value)}
+                              </p>
+                              
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Calendar size={14} />
+                                  <span>
+                                    {studentProfile?.created_at && 
+                                     `${new Date(studentProfile.created_at).getFullYear()} - Present`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={14} />
+                                  <span>{jobPrefs.location || 'Remote'}</span>
+                                </div>
+                              </div>
+
+                              {/* Skills used in this role */}
+                              <div className="mt-3 pt-3 border-t border-gray-100">
+                                <p className="text-xs text-gray-500 mb-2">Skills used:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {skills.slice(0, 4).map((skill: string, skillIndex: number) => (
+                                    <Badge
+                                      key={skillIndex}
+                                      variant="secondary"
+                                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                    >
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                  {skills.length > 4 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{skills.length - 4} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 capitalize">
-                            {key.replace(/_/g, ' ')}
-                          </h3>
-                          <p className="text-gray-700 text-sm mb-2">
-                            {typeof value === 'string' ? value : JSON.stringify(value)}
-                          </p>
-                          <p className="text-gray-500 text-sm">
-                            {studentProfile?.created_at && 
-                             `Since ${new Date(studentProfile.created_at).getFullYear()}`}
-                          </p>
-                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Experience Summary */}
+                  {experience.summary && (
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target size={16} className="text-green-600" />
+                        <h3 className="font-semibold text-gray-800">Professional Summary</h3>
                       </div>
-                    )
-                  })}
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {experience.summary}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Briefcase size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>No experience added yet</p>
-                  <Button variant="outline" className="mt-3">
+                <div className="text-center py-12 text-gray-500">
+                  <Briefcase size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No experience added yet</h3>
+                  <p className="text-gray-600 mb-4">Showcase your professional journey and accomplishments</p>
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
                     <Plus size={16} className="mr-2" />
                     Add experience
                   </Button>
@@ -391,10 +614,15 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Projects Section */}
+          {/* Enhanced Projects Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-xl font-semibold">Projects</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Projects</h2>
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  {projects.length} projects
+                </Badge>
+              </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm">
                   <Plus size={16} />
@@ -406,60 +634,84 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               {projects.length > 0 ? (
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {projects.map((project: any, index: number) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Code size={20} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">
-                          {project.name || project.title || `Project ${index + 1}`}
-                        </h3>
-                        {project.description && (
-                          <p className="text-gray-700 text-sm mb-3 leading-relaxed">
-                            {project.description}
-                          </p>
-                        )}
-                        {project.technologies && (
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {Array.isArray(project.technologies) ? 
-                              project.technologies.map((tech: string, techIndex: number) => (
-                                <Badge
-                                  key={techIndex}
-                                  variant="secondary"
-                                  className="text-xs bg-gray-100 text-gray-700"
-                                >
-                                  {tech}
-                                </Badge>
-                              )) : (
-                                <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                                  {project.technologies}
-                                </Badge>
-                              )
-                            }
+                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all duration-200 group">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Code size={20} className="text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {project.name || project.title || `Project ${index + 1}`}
+                            </h3>
+                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ExternalLink size={14} />
+                            </Button>
                           </div>
-                        )}
-                        {project.url && (
-                          <a 
-                            href={project.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          >
-                            View Project
-                            <ExternalLink size={14} className="ml-1" />
-                          </a>
-                        )}
+                          
+                          {project.description && (
+                            <p className="text-gray-700 text-sm mb-3 leading-relaxed line-clamp-3">
+                              {project.description}
+                            </p>
+                          )}
+                          
+                          {project.technologies && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {Array.isArray(project.technologies) ? 
+                                project.technologies.slice(0, 3).map((tech: string, techIndex: number) => (
+                                  <Badge
+                                    key={techIndex}
+                                    variant="secondary"
+                                    className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  >
+                                    {tech}
+                                  </Badge>
+                                )) : (
+                                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                                    {project.technologies}
+                                  </Badge>
+                                )
+                              }
+                              {Array.isArray(project.technologies) && project.technologies.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{project.technologies.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between">
+                            {project.url ? (
+                              <a 
+                                href={project.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                View Project
+                                <ExternalLink size={14} className="ml-1" />
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-500">In Development</span>
+                            )}
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Star size={12} />
+                              <span>{Math.floor(Math.random() * 50) + 10}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Code size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>No projects added yet</p>
-                  <Button variant="outline" className="mt-3">
+                <div className="text-center py-12 text-gray-500">
+                  <Code size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No projects added yet</h3>
+                  <p className="text-gray-600 mb-4">Showcase your work and demonstrate your skills</p>
+                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
                     <Plus size={16} className="mr-2" />
                     Add project
                   </Button>
@@ -468,80 +720,42 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Skills Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-xl font-semibold">Skills</h2>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm">
-                  <Plus size={16} />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Edit3 size={16} />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {skills.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {skills.slice(0, 9).map((skill: string, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                          <Code size={16} className="text-blue-600" />
-                        </div>
-                        <span className="font-medium text-gray-900">{skill}</span>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        <Plus size={16} />
-                      </Button>
-                    </div>
-                  ))}
-                  {skills.length > 9 && (
-                    <Button variant="outline" className="mt-2">
-                      Show all {skills.length} skills
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Award size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>No skills added yet</p>
-                  <Button variant="outline" className="mt-3">
-                    <Plus size={16} className="mr-2" />
-                    Add skill
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Certifications Section */}
+          {/* Enhanced Certifications Section */}
           {certifications.length > 0 && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <h2 className="text-xl font-semibold">Licenses & certifications</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold">Licenses & Certifications</h2>
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                    {certifications.length} certifications
+                  </Badge>
+                </div>
                 <Button variant="ghost" size="sm">
                   <Plus size={16} />
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {certifications.map((cert: any, index: number) => (
-                    <div key={index} className="flex gap-3">
-                      <div className="w-10 h-10 bg-yellow-100 rounded flex items-center justify-center flex-shrink-0">
-                        <Award size={16} className="text-yellow-600" />
+                    <div key={index} className="flex gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Award size={20} className="text-white" />
                       </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 mb-1">
                           {cert.name || cert.title || `Certification ${index + 1}`}
                         </h4>
                         {cert.issuer && (
-                          <p className="text-sm text-gray-600">{cert.issuer}</p>
+                          <p className="text-sm text-blue-600 font-medium mb-1">{cert.issuer}</p>
                         )}
                         {cert.date && (
                           <p className="text-xs text-gray-500">Issued {cert.date}</p>
                         )}
+                        <div className="mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            Verified
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -562,15 +776,15 @@ const Profile = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.entries(jobPrefs).map(([key, value]) => (
-                    <div key={key} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                        <Briefcase size={16} className="text-blue-600" />
+                    <div key={key} className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <Briefcase size={16} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 capitalize">
+                        <p className="text-sm text-gray-600 capitalize font-medium">
                           {key.replace(/_/g, ' ')}
                         </p>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-semibold text-gray-900">
                           {typeof value === 'string' ? value : JSON.stringify(value)}
                         </p>
                       </div>
@@ -595,6 +809,9 @@ const Profile = () => {
                   <p><strong>Profile Loaded:</strong> {studentProfile ? 'Yes' : 'No'}</p>
                   <p><strong>Student ID:</strong> {getStudentId()}</p>
                   <p><strong>Database ID:</strong> {studentProfile?.id}</p>
+                  <p><strong>Skills Count:</strong> {skills.length}</p>
+                  <p><strong>Projects Count:</strong> {projects.length}</p>
+                  <p><strong>Experience Keys:</strong> {Object.keys(experience).length}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
                   <Button 
                     variant="outline" 

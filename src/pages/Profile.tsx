@@ -16,7 +16,8 @@ import {
   MoreHorizontal,
   Globe,
   Phone,
-  Link as LinkIcon
+  LinkIcon,
+  Loader2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -25,10 +26,33 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { user, studentProfile, signOut } = useAuth()
+  const { user, studentProfile, signOut, refreshStudentProfile } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Refresh profile data when component mounts
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user && !studentProfile) {
+        setLoading(true)
+        try {
+          await refreshStudentProfile()
+        } catch (err) {
+          console.error('Error loading profile:', err)
+          setError('Failed to load profile data')
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+  }, [user, studentProfile, refreshStudentProfile])
 
   const handleSignOut = async () => {
     await signOut()
@@ -39,7 +63,19 @@ const Profile = () => {
   const renderArrayData = (data: any, fallback = []) => {
     if (!data) return fallback
     if (Array.isArray(data)) return data
-    if (typeof data === 'object') return Object.values(data).flat()
+    if (typeof data === 'object') {
+      // Handle object with array values
+      const values = Object.values(data)
+      return values.flat().filter(Boolean)
+    }
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data)
+        return Array.isArray(parsed) ? parsed : [data]
+      } catch {
+        return [data]
+      }
+    }
     return [data]
   }
 
@@ -61,12 +97,44 @@ const Profile = () => {
     if (studentProfile?.first_name && studentProfile?.last_name) {
       return `${studentProfile.first_name} ${studentProfile.last_name}`
     }
+    if (studentProfile?.first_name) {
+      return studentProfile.first_name
+    }
     return 'Student Profile'
   }
 
+  // Parse data from database
   const skills = renderArrayData(studentProfile?.skills, [])
-  const projects = Array.isArray(studentProfile?.projects) ? studentProfile.projects : []
+  const projects = renderArrayData(studentProfile?.projects, [])
+  const experience = studentProfile?.experience || {}
+  const certifications = renderArrayData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,7 +210,7 @@ const Profile = () => {
                         {getFullName()}
                       </h1>
                       <p className="text-lg text-gray-700 mb-2">
-                        {jobPrefs.desired_role || 'Student'} • {studentProfile?.student_id}
+                        {jobPrefs.desired_role || 'Student'} • {studentProfile?.student_id || user?.student_id}
                       </p>
                       <div className="flex items-center text-gray-600 text-sm mb-3">
                         <MapPin size={16} className="mr-1" />
@@ -156,6 +224,12 @@ const Profile = () => {
                         <Building2 size={16} className="text-gray-500" />
                         <span className="text-sm text-gray-600">
                           {jobPrefs.company_preference || 'Open to opportunities'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Mail size={16} className="text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          {studentProfile?.email || user?.email}
                         </span>
                       </div>
                     </div>
@@ -213,7 +287,7 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-700 leading-relaxed">
-                {studentProfile?.experience?.summary || 
+                {experience?.summary || 
                  `Passionate ${jobPrefs.desired_role || 'student'} with expertise in modern technologies. 
                  Currently pursuing ${jobPrefs.education_level || 'undergraduate studies'} and seeking 
                  opportunities in ${jobPrefs.industry || 'technology sector'}.`}
@@ -235,27 +309,30 @@ const Profile = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {studentProfile?.experience && typeof studentProfile.experience === 'object' ? (
+              {experience && Object.keys(experience).length > 0 ? (
                 <div className="space-y-6">
-                  {Object.entries(studentProfile.experience).map(([key, value], index) => (
-                    <div key={key} className="flex gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Building2 size={20} className="text-gray-600" />
+                  {Object.entries(experience).map(([key, value], index) => {
+                    if (key === 'summary') return null // Skip summary as it's shown in About
+                    return (
+                      <div key={key} className="flex gap-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Building2 size={20} className="text-gray-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 capitalize">
+                            {key.replace(/_/g, ' ')}
+                          </h3>
+                          <p className="text-gray-700 text-sm mb-2">
+                            {typeof value === 'string' ? value : JSON.stringify(value)}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            {studentProfile?.created_at && 
+                             `Since ${new Date(studentProfile.created_at).getFullYear()}`}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 capitalize">
-                          {key.replace(/_/g, ' ')}
-                        </h3>
-                        <p className="text-gray-700 text-sm mb-2">
-                          {typeof value === 'string' ? value : JSON.stringify(value)}
-                        </p>
-                        <p className="text-gray-500 text-sm">
-                          {studentProfile?.created_at && 
-                           `Since ${new Date(studentProfile.created_at).getFullYear()}`}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -396,7 +473,7 @@ const Profile = () => {
           </Card>
 
           {/* Certifications Section */}
-          {studentProfile?.certifications_and_licenses && (
+          {certifications.length > 0 && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <h2 className="text-xl font-semibold">Licenses & certifications</h2>
@@ -406,28 +483,24 @@ const Profile = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Array.isArray(studentProfile.certifications_and_licenses) ? (
-                    studentProfile.certifications_and_licenses.map((cert: any, index: number) => (
-                      <div key={index} className="flex gap-3">
-                        <div className="w-10 h-10 bg-yellow-100 rounded flex items-center justify-center flex-shrink-0">
-                          <Award size={16} className="text-yellow-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {cert.name || cert.title || `Certification ${index + 1}`}
-                          </h4>
-                          {cert.issuer && (
-                            <p className="text-sm text-gray-600">{cert.issuer}</p>
-                          )}
-                          {cert.date && (
-                            <p className="text-xs text-gray-500">Issued {cert.date}</p>
-                          )}
-                        </div>
+                  {certifications.map((cert: any, index: number) => (
+                    <div key={index} className="flex gap-3">
+                      <div className="w-10 h-10 bg-yellow-100 rounded flex items-center justify-center flex-shrink-0">
+                        <Award size={16} className="text-yellow-600" />
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-600">No certifications added yet</p>
-                  )}
+                      <div>
+                        <h4 className="font-medium text-gray-900">
+                          {cert.name || cert.title || `Certification ${index + 1}`}
+                        </h4>
+                        {cert.issuer && (
+                          <p className="text-sm text-gray-600">{cert.issuer}</p>
+                        )}
+                        {cert.date && (
+                          <p className="text-xs text-gray-500">Issued {cert.date}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -459,6 +532,33 @@ const Profile = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Debug Info (only in development) */}
+          {import.meta.env.DEV && (
+            <Card className="border-dashed border-gray-300">
+              <CardHeader>
+                <h2 className="text-sm font-mono text-gray-500">Debug Info (Dev Only)</h2>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs font-mono text-gray-500 space-y-2">
+                  <p><strong>User ID:</strong> {user?.student_id}</p>
+                  <p><strong>Email:</strong> {user?.email}</p>
+                  <p><strong>Profile Loaded:</strong> {studentProfile ? 'Yes' : 'No'}</p>
+                  <p><strong>Student ID:</strong> {studentProfile?.student_id}</p>
+                  <p><strong>Database ID:</strong> {studentProfile?.id}</p>
+                  <p><strong>Created:</strong> {studentProfile?.created_at}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refreshStudentProfile}
+                    className="mt-2"
+                  >
+                    Refresh Profile Data
+                  </Button>
                 </div>
               </CardContent>
             </Card>

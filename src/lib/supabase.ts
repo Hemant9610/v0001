@@ -33,11 +33,11 @@ supabase
     }
   })
 
-// Database types based on your schema
+// Database types based on your actual schema
 export interface AuthUser {
   id?: number
   created_at?: string
-  email: string
+  mail: string  // Changed from 'email' to 'mail'
   password: string
   student_id: string
 }
@@ -62,10 +62,10 @@ export const testDatabaseConnection = async () => {
   try {
     console.log('🔍 Testing database connection...')
     
-    // Test auth table
+    // Test auth table with correct column name
     const { data: authTest, error: authError } = await supabase
       .from('v0001_auth')
-      .select('email')
+      .select('mail')  // Changed from 'email' to 'mail'
       .limit(1)
     
     console.log('Auth table test:', { 

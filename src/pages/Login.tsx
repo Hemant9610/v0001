@@ -193,12 +193,12 @@ const Login = ({ onLogin }: LoginProps) => {
               </Button>
             </div>
 
-            {/* Test Credentials */}
+            {/* Database Schema Info */}
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs text-blue-700 font-medium mb-1">Sample Test Credentials:</p>
+              <p className="text-xs text-blue-700 font-medium mb-1">Database Schema (v0001_auth):</p>
               <div className="text-xs text-blue-600 space-y-1">
-                <div>Email: tanvi.malhotra.finance@gmail.com</div>
-                <div>Password: TanviMalhotra</div>
+                <div>Columns: id, mail, password, student_id, created_at</div>
+                <div>Note: Email is stored in the 'mail' column</div>
               </div>
             </div>
           </div>

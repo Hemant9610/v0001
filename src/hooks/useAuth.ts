@@ -47,13 +47,13 @@ export const useAuth = () => {
       console.log('✅ Database connection successful')
 
       console.log('🔍 Step 2: Searching for email in auth table...')
-      console.log('📧 Looking for email:', cleanEmail)
+      console.log('📧 Looking for email in "mail" column:', cleanEmail)
       
-      // Query auth table for the email
+      // Query auth table for the email using the correct column name 'mail'
       const { data: authUsers, error: emailError } = await supabase
         .from('v0001_auth')
         .select('*')
-        .eq('email', cleanEmail)
+        .eq('mail', cleanEmail)  // Changed from 'email' to 'mail'
 
       console.log('📊 Email search query completed')
       console.log('📊 Raw database response:', {
@@ -75,7 +75,7 @@ export const useAuth = () => {
       // Check if email exists
       if (!authUsers || authUsers.length === 0) {
         console.log('❌ EMAIL NOT FOUND IN DATABASE')
-        console.log('📧 Searched email:', cleanEmail)
+        console.log('📧 Searched email in "mail" column:', cleanEmail)
         console.log('📊 Search result: 0 users found')
         console.log('💡 This means the email address is not registered in the system')
         setAuthState(prev => ({ 
@@ -90,7 +90,7 @@ export const useAuth = () => {
         console.warn('⚠️ Multiple users found with same email:', authUsers.length)
         console.warn('📊 All matching users:', authUsers.map(u => ({ 
           id: u.id, 
-          email: u.email, 
+          mail: u.mail, 
           student_id: u.student_id 
         })))
       }
@@ -99,7 +99,7 @@ export const useAuth = () => {
       console.log('✅ EMAIL FOUND IN DATABASE')
       console.log('👤 User details:', {
         id: authUser.id,
-        email: authUser.email,
+        mail: authUser.mail,
         student_id: authUser.student_id,
         hasPassword: !!authUser.password,
         passwordLength: authUser.password?.length || 0
@@ -136,11 +136,11 @@ export const useAuth = () => {
       console.log('🔍 Step 4: Loading student profile...')
       console.log('📧 Searching student profile with email:', cleanEmail)
       
-      // Fetch student profile using email
+      // Fetch student profile using email (student table uses 'email' column)
       const { data: studentProfiles, error: profileError } = await supabase
         .from('v0001_student_database')
         .select('*')
-        .eq('email', cleanEmail)
+        .eq('email', cleanEmail)  // Student table still uses 'email' column
 
       console.log('📊 Profile search result:', {
         found: studentProfiles?.length || 0,
@@ -187,7 +187,7 @@ export const useAuth = () => {
 
       console.log('🎉 LOGIN SUCCESSFUL! ACCESS GRANTED.')
       console.log('📊 Final auth state:', {
-        userEmail: authUser.email,
+        userEmail: authUser.mail,
         userStudentId: authUser.student_id,
         hasProfile: !!profileData,
         profileName: profileData ? `${profileData.first_name} ${profileData.last_name}` : 'N/A'
@@ -261,7 +261,7 @@ export const useAuth = () => {
             })
             console.log('✅ Auth state restored from localStorage')
             console.log('👤 Restored user:', {
-              email: user.email,
+              mail: user.mail,
               student_id: user.student_id,
               hasProfile: !!profile
             })

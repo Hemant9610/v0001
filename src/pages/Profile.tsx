@@ -18,7 +18,7 @@ const Profile = () => {
   const profileData = profile || {
     first_name: 'Student',
     last_name: 'User',
-    email: user?.email || '',
+    email: user?.mail || '',  // Changed from user?.email to user?.mail
     student_id: user?.student_id || '',
   };
 
@@ -75,7 +75,7 @@ const Profile = () => {
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-2">
                   <div className="flex items-center gap-1">
                     <Mail size={14} />
-                    <span>{profileData.email}</span>
+                    <span>{profileData.email || user?.mail}</span>
                   </div>
                   {profile?.skills && (
                     <div className="flex items-center gap-1">
@@ -89,6 +89,16 @@ const Profile = () => {
                   <p className="mt-4 text-slate-700 text-sm leading-relaxed">
                     Welcome to your profile! Your information is securely stored and ready for job matching.
                   </p>
+                )}
+
+                {/* Debug Info */}
+                {user && (
+                  <div className="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
+                    <p className="font-medium mb-1">Account Info:</p>
+                    <p>Email: {user.mail}</p>
+                    <p>Student ID: {user.student_id}</p>
+                    <p>Profile Loaded: {profile ? 'Yes' : 'No'}</p>
+                  </div>
                 )}
               </div>
             </div>

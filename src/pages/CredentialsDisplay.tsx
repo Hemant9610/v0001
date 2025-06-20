@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 
 interface DatabaseUser {
   id: number;
-  email: string;
+  mail: string;  // Changed from 'email' to 'mail'
   password: string;
   student_id: string;
   created_at: string;
@@ -24,7 +24,7 @@ const CredentialsDisplay = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        console.log('🔍 Fetching all users from database...');
+        console.log('🔍 Fetching all users from v0001_auth table...');
         
         const { data, error } = await supabase
           .from('v0001_auth')
@@ -36,6 +36,7 @@ const CredentialsDisplay = () => {
           setError(`Database error: ${error.message}`);
         } else {
           console.log('✅ Users fetched successfully:', data?.length || 0, 'users found');
+          console.log('📊 Sample user data:', data?.[0]);
           setUsers(data || []);
         }
       } catch (err) {
@@ -100,7 +101,10 @@ const CredentialsDisplay = () => {
             Database Credentials
           </h1>
           <p className="text-slate-600">
-            Valid login credentials from the authentication database
+            Valid login credentials from the v0001_auth table
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Table columns: id, mail, password, student_id, created_at
           </p>
         </div>
 
@@ -118,13 +122,13 @@ const CredentialsDisplay = () => {
           <Card>
             <CardContent className="pt-6 text-center">
               <Database className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-600">No users found in the database</p>
+              <p className="text-slate-600">No users found in the v0001_auth table</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             <div className="text-sm text-slate-600 mb-4">
-              Found {users.length} user{users.length !== 1 ? 's' : ''} in the database:
+              Found {users.length} user{users.length !== 1 ? 's' : ''} in the v0001_auth table:
             </div>
 
             {users.map((user, index) => (
@@ -138,18 +142,18 @@ const CredentialsDisplay = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {/* Email */}
+                  {/* Email (from 'mail' column) */}
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div>
                       <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
-                        Email
+                        Email (mail column)
                       </label>
-                      <p className="text-slate-800 font-mono">{user.email}</p>
+                      <p className="text-slate-800 font-mono">{user.mail}</p>
                     </div>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => copyToClipboard(user.email, index * 2)}
+                      onClick={() => copyToClipboard(user.mail, index * 2)}
                       className="h-8 w-8 p-0"
                     >
                       {copiedIndex === index * 2 ? (
@@ -195,7 +199,7 @@ const CredentialsDisplay = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const credentials = `Email: ${user.email}\nPassword: ${user.password}`;
+                        const credentials = `Email: ${user.mail}\nPassword: ${user.password}`;
                         copyToClipboard(credentials, index * 100);
                       }}
                       className="w-full text-xs"
@@ -228,7 +232,22 @@ const CredentialsDisplay = () => {
               <li>• Go back to the login page</li>
               <li>• Paste the credentials and sign in</li>
               <li>• Use the "Copy Both Credentials" button for quick copying</li>
+              <li>• Note: The database uses 'mail' column for email addresses</li>
             </ul>
+          </CardContent>
+        </Card>
+
+        {/* Database Schema Info */}
+        <Card className="mt-4 border-slate-200 bg-slate-50">
+          <CardContent className="pt-6">
+            <h3 className="font-medium text-slate-800 mb-2">Database Schema (v0001_auth table):</h3>
+            <div className="text-sm text-slate-600 space-y-1 font-mono">
+              <div>• id: bigint (primary key)</div>
+              <div>• mail: text (email address)</div>
+              <div>• password: text (plain text password)</div>
+              <div>• student_id: text (student identifier)</div>
+              <div>• created_at: timestamp with time zone</div>
+            </div>
           </CardContent>
         </Card>
       </div>

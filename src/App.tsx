@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import CredentialsDisplay from "./pages/CredentialsDisplay";
 
 const queryClient = new QueryClient();
 
@@ -46,7 +47,13 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <Login onLogin={handleLogin} />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Login onLogin={handleLogin} />} />
+              <Route path="/credentials" element={<CredentialsDisplay />} />
+              <Route path="*" element={<Login onLogin={handleLogin} />} />
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
     );
@@ -62,6 +69,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/credentials" element={<CredentialsDisplay />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

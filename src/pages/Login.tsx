@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, CheckCircle, XCircle, Database, Wifi } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Database, Wifi, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginProps {
   onLogin: () => void;
@@ -16,6 +17,7 @@ const Login = ({ onLogin }: LoginProps) => {
   const [password, setPassword] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,9 +180,22 @@ const Login = ({ onLogin }: LoginProps) => {
               </div>
             </div>
 
+            {/* View All Credentials Button */}
+            <div className="mt-4">
+              <Button
+                onClick={() => navigate('/credentials')}
+                variant="outline"
+                size="sm"
+                className="w-full flex items-center gap-2"
+              >
+                <Eye size={14} />
+                View All Database Credentials
+              </Button>
+            </div>
+
             {/* Test Credentials */}
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs text-blue-700 font-medium mb-1">Test Credentials:</p>
+              <p className="text-xs text-blue-700 font-medium mb-1">Sample Test Credentials:</p>
               <div className="text-xs text-blue-600 space-y-1">
                 <div>Email: tanvi.malhotra.finance@gmail.com</div>
                 <div>Password: TanviMalhotra</div>

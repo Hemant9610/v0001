@@ -96,22 +96,6 @@ const Login = () => {
     setLoading(false)
   }
 
-  const fillTestCredentials = async () => {
-    const users = await debugAuth.listAllUsers()
-    if (users.length > 0) {
-      setEmail(users[0].email)
-      setPassword('password123') // Common test password
-      setDebugInfo(`Filled with: ${users[0].email}`)
-    } else {
-      const testUser = await debugAuth.createTestUser()
-      if (testUser) {
-        setEmail(testUser.email)
-        setPassword(testUser.password)
-        setDebugInfo(`Created and filled test user: ${testUser.email}`)
-      }
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
       <Card className="w-full max-w-md">
@@ -197,25 +181,13 @@ const Login = () => {
             </div>
           </form>
           
-          <div className="mt-6 space-y-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={fillTestCredentials}
-              className="w-full"
-              disabled={loading}
-            >
-              Fill Test Credentials
-            </Button>
-            
-            <div className="text-center">
-              <p className="text-sm text-slate-500">
-                Use your credentials from the v0001_auth table
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                Click "🔍" to run diagnostics or check browser console
-              </p>
-            </div>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-500">
+              Use your credentials from the v0001_auth table
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Click "🔍" to run diagnostics or check browser console
+            </p>
           </div>
         </CardContent>
       </Card>

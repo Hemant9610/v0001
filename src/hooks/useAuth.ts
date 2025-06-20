@@ -20,15 +20,28 @@ export const useAuth = () => {
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
+      console.log('Attempting login with:', { email, password })
+
       // Query the v0001_auth table for matching credentials
       const { data: authData, error: authError } = await supabase
         .from('v0001_auth')
         .select('*')
-        .eq('email', email)
+        .eq('email', email.trim())
         .eq('password', password)
-        .maybeSingle()
 
-      if (authError || !authData) {
+      console.log('Auth query result:', { authData, authError })
+
+      if (authError) {
+        console.error('Auth query error:', authError)
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Database connection error' 
+        }))
+        return false
+      }
+
+      if (!authData || authData.length === 0) {
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
@@ -37,30 +50,41 @@ export const useAuth = () => {
         return false
       }
 
-      // If authentication successful, fetch the student profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('v0001_student_database')
-        .select('*')
-        .eq('student_id', authData.student_id)
-        .single()
+      // Get the first matching user
+      const user = authData[0]
+      console.log('Authenticated user:', user)
 
-      if (profileError) {
-        console.warn('Could not fetch student profile:', profileError)
+      // If authentication successful, fetch the student profile
+      let profileData = null
+      if (user.student_id) {
+        const { data: profile, error: profileError } = await supabase
+          .from('v0001_student_database')
+          .select('*')
+          .eq('student_id', user.student_id)
+          .maybeSingle()
+
+        if (profileError) {
+          console.warn('Could not fetch student profile:', profileError)
+        } else {
+          profileData = profile
+          console.log('Student profile:', profileData)
+        }
       }
 
       setAuthState({
-        user: authData,
-        profile: profileData || null,
+        user: user,
+        profile: profileData,
         isLoading: false,
         error: null
       })
 
       // Store auth state in localStorage for persistence
-      localStorage.setItem('auth_user', JSON.stringify(authData))
+      localStorage.setItem('auth_user', JSON.stringify(user))
       if (profileData) {
         localStorage.setItem('student_profile', JSON.stringify(profileData))
       }
 
+      console.log('Login successful')
       return true
     } catch (error) {
       console.error('Login error:', error)
@@ -74,6 +98,7 @@ export const useAuth = () => {
   }
 
   const logout = () => {
+    console.log('Logging out')
     setAuthState({
       user: null,
       profile: null,
@@ -93,6 +118,8 @@ export const useAuth = () => {
     const storedUser = localStorage.getItem('auth_user')
     const storedProfile = localStorage.getItem('student_profile')
     
+    console.log('Checking stored auth:', { storedUser: !!storedUser, storedProfile: !!storedProfile })
+    
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser)
@@ -103,6 +130,7 @@ export const useAuth = () => {
           isLoading: false,
           error: null
         })
+        console.log('Restored auth state from localStorage')
       } catch (error) {
         console.error('Error parsing stored auth data:', error)
         localStorage.removeItem('auth_user')

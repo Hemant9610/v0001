@@ -14,7 +14,7 @@ interface LoginProps {
 const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,8 +23,12 @@ const Login = ({ onLogin }: LoginProps) => {
       return;
     }
 
+    console.log('Submitting login form with:', { email, password })
     const success = await login(email, password);
+    console.log('Login result:', success)
+    
     if (success) {
+      console.log('Login successful, calling onLogin')
       onLogin();
     }
   };
@@ -35,6 +39,14 @@ const Login = ({ onLogin }: LoginProps) => {
       clearError();
     }
   }, [email, password, error, clearError]);
+
+  // If already authenticated, trigger onLogin
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('Already authenticated, calling onLogin')
+      onLogin();
+    }
+  }, [isAuthenticated, onLogin]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
@@ -111,6 +123,9 @@ const Login = ({ onLogin }: LoginProps) => {
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-500">
               Use your registered email and password to continue
+            </p>
+            <p className="text-xs text-slate-400 mt-2">
+              Check browser console for debug information
             </p>
           </div>
         </CardContent>

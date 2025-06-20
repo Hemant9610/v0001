@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, studentProfile, signOut } = useAuth()
 
   const handleSignOut = async () => {
     await signOut()
@@ -47,11 +47,12 @@ const Profile = () => {
               <div className="flex-shrink-0">
                 <Avatar className="w-32 h-32 border-4 border-white shadow-md">
                   <AvatarImage
-                    src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"
+                    src={studentProfile?.profile_image || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"}
                     alt="Profile"
                   />
                   <AvatarFallback className="text-2xl">
-                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    {studentProfile?.first_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'U'}
+                    {studentProfile?.last_name?.charAt(0) || ''}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -59,147 +60,112 @@ const Profile = () => {
               {/* Profile Info */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-3xl font-semibold text-slate-800 mb-1">
-                  {user?.user_metadata?.full_name || 'User Profile'}
+                  {studentProfile?.first_name && studentProfile?.last_name 
+                    ? `${studentProfile.first_name} ${studentProfile.last_name}`
+                    : user?.user_metadata?.full_name || 'User Profile'
+                  }
                 </h1>
-                <p className="text-base text-slate-600 mb-2">Senior UI/UX Designer & Product Manager</p>
+                <p className="text-base text-slate-600 mb-2">
+                  {studentProfile?.job_preferences?.role || 'Student Profile'}
+                </p>
 
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-2">
                   <div className="flex items-center gap-1">
                     <Building2 size={14} />
-                    <span>TechCorp Solutions</span>
+                    <span>{studentProfile?.experience?.company || 'Not specified'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <GraduationCap size={14} />
-                    <span>Stanford University</span>
+                    <span>{studentProfile?.experience?.education || 'Not specified'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MapPin size={14} />
-                    <span>San Francisco, CA</span>
+                    <span>{studentProfile?.job_preferences?.location || 'Not specified'}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1 text-blue-600 text-sm">
                   <Mail size={14} />
-                  <span>{user?.email}</span>
+                  <span>{studentProfile?.email || user?.email}</span>
                 </div>
 
                 <p className="mt-4 text-slate-700 text-sm leading-relaxed">
-                  Passionate UI/UX Designer with 6+ years of experience creating user-centered digital experiences. Specialized in design systems, mobile interfaces, and cross-functional collaboration.
+                  {studentProfile?.experience?.summary || 'No profile description available.'}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Experience Section */}
-        <Card>
-          <CardHeader>
-            <h2 className="text-xl font-semibold text-slate-800">Experience</h2>
-          </CardHeader>
-          <CardContent className="divide-y divide-slate-200">
-            {[
-              {
-                title: 'Senior UI/UX Designer & Product Manager',
-                company: 'TechCorp Solutions',
-                time: 'Jan 2022 - Present • 2 yrs 11 mos',
-                location: 'San Francisco, CA • Remote',
-                description:
-                  'Leading design initiatives for enterprise SaaS products, managing a team of 4 designers and collaborating closely with product and engineering teams.',
-                points: [
-                  'Redesigned core dashboard resulting in 40% increase in user engagement',
-                  'Established design system adopted across 5 product teams',
-                  'Led user research initiatives with 200+ participants',
-                  'Mentored junior designers and interns',
-                ],
-                skills: [
-                  'Figma',
-                  'Design Systems',
-                  'User Research',
-                  'Product Management',
-                  'Team Leadership',
-                ],
-              },
-              {
-                title: 'UI/UX Designer',
-                company: 'DesignStudio Inc.',
-                time: 'Jun 2020 - Dec 2021 • 1 yr 7 mos',
-                location: 'New York, NY',
-                description:
-                  'Designed mobile and web interfaces for fintech and e-commerce clients, focusing on conversion optimization and user experience improvements.',
-                points: [
-                  'Increased app conversion rates by 25%',
-                  'Created wireframes and prototypes for 15+ projects',
-                  'Collaborated with developers to ensure pixel-perfect implementation',
-                ],
-                skills: [
-                  'Sketch',
-                  'Figma',
-                  'Prototyping',
-                  'Mobile Design',
-                  'Web Design',
-                ],
-              },
-              {
-                title: 'Junior UI Designer',
-                company: 'Creative Agency',
-                time: 'Aug 2018 - May 2020 • 1 yr 10 mos',
-                location: 'Los Angeles, CA',
-                description:
-                  'Created visual designs for digital marketing campaigns and brand identities for clients in entertainment and lifestyle sectors.',
-                points: [
-                  'Designed marketing materials for 20+ campaigns',
-                  'Created brand guidelines and visual identity systems',
-                  'Collaborated with senior designers on large-scale projects',
-                ],
-                skills: [
-                  'Adobe Creative Suite',
-                  'Brand Design',
-                  'Marketing Design',
-                  'Visual Design',
-                ],
-              },
-            ].map((item, i) => (
-              <div key={i} className="flex gap-4 py-6">
-                <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
-                  <Building2 size={20} />
-                </div>
-
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-800 mb-0.5">{item.title}</h3>
-                  <p className="text-slate-600 text-sm mb-1">{item.company}</p>
-                  <div className="flex items-center gap-4 text-xs text-slate-500 mb-2">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      <span>{item.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin size={12} />
-                      <span>{item.location}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-slate-700 mb-2">{item.description}</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-                    {item.points.map((point, idx) => (
-                      <li key={idx}>{point}</li>
-                    ))}
-                  </ul>
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {item.skills.map((skill) => (
+        {/* Skills Section */}
+        {studentProfile?.skills && (
+          <Card className="mb-6">
+            <CardHeader>
+              <h2 className="text-xl font-semibold text-slate-800">Skills</h2>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {Array.isArray(studentProfile.skills) 
+                  ? studentProfile.skills.map((skill: string, index: number) => (
                       <span
-                        key={skill}
-                        className="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-300"
+                        key={index}
+                        className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full border border-blue-200"
                       >
                         {skill}
                       </span>
-                    ))}
-                  </div>
-                </div>
+                    ))
+                  : Object.entries(studentProfile.skills).map(([category, skills]) => (
+                      <div key={category} className="w-full mb-4">
+                        <h3 className="font-medium text-slate-700 mb-2 capitalize">{category}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.isArray(skills) && skills.map((skill: string, index: number) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-slate-100 text-slate-700 text-sm rounded-full border border-slate-300"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                }
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Projects Section */}
+        {studentProfile?.projects && (
+          <Card>
+            <CardHeader>
+              <h2 className="text-xl font-semibold text-slate-800">Projects</h2>
+            </CardHeader>
+            <CardContent>
+              {Array.isArray(studentProfile.projects) 
+                ? studentProfile.projects.map((project: any, index: number) => (
+                    <div key={index} className="mb-4 p-4 bg-slate-50 rounded-lg">
+                      <h3 className="font-medium text-slate-800">{project.name || `Project ${index + 1}`}</h3>
+                      <p className="text-sm text-slate-600 mt-1">{project.description}</p>
+                      {project.technologies && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {project.technologies.map((tech: string, techIndex: number) => (
+                            <span
+                              key={techIndex}
+                              className="px-2 py-1 bg-white text-slate-600 text-xs rounded border"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                : <p className="text-slate-600">No projects available</p>
+              }
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

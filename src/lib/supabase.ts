@@ -23,6 +23,7 @@ export interface StudentProfile {
   certifications_and_licenses: any
   job_preferences: any
   profile_image: string
+  auth_user_id?: string // Link to Supabase Auth user
 }
 
 export interface AuthUser {
@@ -31,4 +32,36 @@ export interface AuthUser {
   email: string
   password: string
   student_id: string
+}
+
+// Helper functions to work with student data
+export const getStudentProfile = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('v0001_student_database')
+    .select('*')
+    .eq('auth_user_id', userId)
+    .single()
+  
+  return { data, error }
+}
+
+export const updateStudentProfile = async (userId: string, updates: Partial<StudentProfile>) => {
+  const { data, error } = await supabase
+    .from('v0001_student_database')
+    .update(updates)
+    .eq('auth_user_id', userId)
+    .select()
+    .single()
+  
+  return { data, error }
+}
+
+export const createStudentProfile = async (profile: Partial<StudentProfile>) => {
+  const { data, error } = await supabase
+    .from('v0001_student_database')
+    .insert(profile)
+    .select()
+    .single()
+  
+  return { data, error }
 }

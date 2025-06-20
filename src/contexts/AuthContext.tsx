@@ -20,11 +20,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStudentProfile = async (student_id: string) => {
     try {
-      const { data, error } = await customAuth.getStudentProfile(student_id)
-      if (!error && data) {
-        setStudentProfile(data)
-      } else if (error) {
+      // Use the safe method that handles single record gracefully
+      const { data, error } = await customAuth.getStudentProfileSafe(student_id)
+      
+      if (error) {
         console.error('Error loading student profile:', error)
+        // If it's a "multiple records" error, try to get the first one
+        if (error.message?.includes('multiple') || error.code === 'PGRST116') {
+          console.warn('Multiple student profiles found, using the first one')
+          const { data: fallbackData } = await customAuth.getStudentProfile(student_id)
+          if (fallbackData) {
+            setStudentProfile(fallbackData)
+          }
+        }
+      } else if (data) {
+        setStudentProfile(data)
       }
     } catch (err) {
       console.error('Unexpected error loading student profile:', err)

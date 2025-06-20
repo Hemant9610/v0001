@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getForcedSingleRecord, getMaybeSingleRecord } from './supabaseHelpers'
 
 export interface CustomAuthUser {
   email: string
@@ -12,15 +13,11 @@ export interface AuthResponse {
 
 // Custom authentication functions for v0001_auth table
 export const customAuth = {
-  // Sign in using v0001_auth table
+  // Sign in using v0001_auth table with forced single record
   signIn: async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      // Query the v0001_auth table directly
-      const { data, error } = await supabase
-        .from('v0001_auth')
-        .select('email, student_id, password')
-        .eq('email', email.trim())
-        .single()
+      // Use helper to force exactly one record
+      const { data, error } = await getForcedSingleRecord('v0001_auth', 'email', email.trim())
 
       if (error || !data) {
         return {
@@ -54,14 +51,31 @@ export const customAuth = {
     }
   },
 
-  // Get student profile by student_id
+  // Get student profile by student_id with forced single record
   getStudentProfile: async (student_id: string) => {
+    try {
+      // Method 1: Using .single() for strict enforcement
+      const { data, error } = await supabase
+        .from('v0001_student_database')
+        .select('*')
+        .eq('student_id', student_id)
+        .single() // This will error if 0 or >1 records
+
+      return { data, error }
+    } catch (err) {
+      console.error('Error getting student profile:', err)
+      return { data: null, error: err }
+    }
+  },
+
+  // Alternative method using maybeSingle for more graceful handling
+  getStudentProfileSafe: async (student_id: string) => {
     try {
       const { data, error } = await supabase
         .from('v0001_student_database')
         .select('*')
         .eq('student_id', student_id)
-        .single()
+        .maybeSingle() // Returns null if no records, error if multiple
 
       return { data, error }
     } catch (err) {
@@ -73,12 +87,12 @@ export const customAuth = {
   // Create new user in v0001_auth table
   signUp: async (email: string, password: string, student_id: string): Promise<AuthResponse> => {
     try {
-      // Check if user already exists
+      // Check if user already exists using maybeSingle
       const { data: existingUser } = await supabase
         .from('v0001_auth')
         .select('email')
         .eq('email', email.trim())
-        .single()
+        .maybeSingle()
 
       if (existingUser) {
         return {
@@ -87,7 +101,7 @@ export const customAuth = {
         }
       }
 
-      // Insert new user
+      // Insert new user and return single record
       const { data, error } = await supabase
         .from('v0001_auth')
         .insert({
@@ -96,7 +110,7 @@ export const customAuth = {
           student_id
         })
         .select('email, student_id')
-        .single()
+        .single() // Force single record return
 
       if (error) {
         return {

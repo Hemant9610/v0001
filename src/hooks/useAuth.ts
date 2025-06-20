@@ -22,37 +22,68 @@ export const useAuth = () => {
     try {
       console.log('Attempting login with email:', email)
 
-      // Query the auth table using email and password
+      // First, check if the email exists in the auth table
+      const { data: emailCheck, error: emailError } = await supabase
+        .from('v0001_auth')
+        .select('email, password')
+        .eq('email', email.trim())
+        .maybeSingle()
+
+      console.log('Email check result:', { emailCheck, emailError })
+
+      if (emailError) {
+        console.error('Database query error:', emailError)
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Database connection error. Please try again.' 
+        }))
+        return false
+      }
+
+      // If no user found with this email
+      if (!emailCheck) {
+        console.log('Email not found in database')
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: '❌ Email not found. Please check your email address.' 
+        }))
+        return false
+      }
+
+      // Email exists, now check if password matches
+      if (emailCheck.password !== password.trim()) {
+        console.log('Password does not match')
+        setAuthState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: '❌ Incorrect password. Please check your password.' 
+        }))
+        return false
+      }
+
+      // Both email and password are correct, now get full user data
       const { data: authData, error: authError } = await supabase
         .from('v0001_auth')
         .select('*')
         .eq('email', email.trim())
         .eq('password', password.trim())
-        .maybeSingle()
+        .single()
 
-      console.log('Auth query result:', { authData, authError })
+      console.log('Full auth data result:', { authData, authError })
 
-      if (authError) {
-        console.error('Auth query error:', authError)
+      if (authError || !authData) {
+        console.error('Error fetching full auth data:', authError)
         setAuthState(prev => ({ 
           ...prev, 
           isLoading: false, 
-          error: 'Database connection error' 
+          error: 'Authentication error. Please try again.' 
         }))
         return false
       }
 
-      if (!authData) {
-        console.log('No matching user found')
-        setAuthState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Invalid email or password' 
-        }))
-        return false
-      }
-
-      console.log('Authentication successful for user:', authData)
+      console.log('✅ Authentication successful for user:', authData.email)
 
       // If authentication successful, fetch the student profile using email
       let profileData = null
@@ -71,9 +102,9 @@ export const useAuth = () => {
         console.warn('Could not fetch student profile:', profileError)
       } else if (profile) {
         profileData = profile
-        console.log('Student profile loaded:', profileData)
+        console.log('✅ Student profile loaded:', profileData.first_name, profileData.last_name)
       } else {
-        console.log('No student profile found for this email')
+        console.log('⚠️ No student profile found for this email')
       }
 
       setAuthState({
@@ -89,21 +120,21 @@ export const useAuth = () => {
         localStorage.setItem('student_profile', JSON.stringify(profileData))
       }
 
-      console.log('Login successful')
+      console.log('✅ Login successful - Access granted!')
       return true
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('Unexpected login error:', error)
       setAuthState(prev => ({ 
         ...prev, 
         isLoading: false, 
-        error: 'An error occurred during login' 
+        error: 'An unexpected error occurred. Please try again.' 
       }))
       return false
     }
   }
 
   const logout = () => {
-    console.log('Logging out')
+    console.log('🚪 Logging out')
     setAuthState({
       user: null,
       profile: null,
@@ -135,7 +166,7 @@ export const useAuth = () => {
           isLoading: false,
           error: null
         })
-        console.log('Restored auth state from localStorage')
+        console.log('✅ Restored auth state from localStorage')
       } catch (error) {
         console.error('Error parsing stored auth data:', error)
         localStorage.removeItem('auth_user')

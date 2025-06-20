@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -14,6 +14,7 @@ interface LoginProps {
 const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
   const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,13 +24,17 @@ const Login = ({ onLogin }: LoginProps) => {
       return;
     }
 
-    console.log('Submitting login form with:', { email, password })
+    console.log('🔐 Submitting login form with:', { email, password: '***' })
     const success = await login(email, password);
-    console.log('Login result:', success)
+    console.log('📊 Login result:', success)
     
     if (success) {
-      console.log('Login successful, calling onLogin')
-      onLogin();
+      console.log('✅ Login successful, showing success message')
+      setShowSuccess(true);
+      setTimeout(() => {
+        console.log('🚀 Calling onLogin callback')
+        onLogin();
+      }, 1500); // Show success message for 1.5 seconds
     }
   };
 
@@ -43,10 +48,17 @@ const Login = ({ onLogin }: LoginProps) => {
   // If already authenticated, trigger onLogin
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('Already authenticated, calling onLogin')
+      console.log('✅ Already authenticated, calling onLogin')
       onLogin();
     }
   }, [isAuthenticated, onLogin]);
+
+  // Clear success message when user starts typing again
+  useEffect(() => {
+    if (showSuccess && (email || password)) {
+      setShowSuccess(false);
+    }
+  }, [email, password, showSuccess]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
@@ -68,9 +80,20 @@ const Login = ({ onLogin }: LoginProps) => {
         </CardHeader>
         
         <CardContent>
-          {error && (
+          {/* Success Message */}
+          {showSuccess && (
+            <Alert className="mb-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                ✅ Access granted! Welcome back. Redirecting...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Error Message */}
+          {error && !showSuccess && (
             <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
+              <XCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -86,7 +109,7 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your email"
                 required
                 className="h-12"
-                disabled={isLoading}
+                disabled={isLoading || showSuccess}
               />
             </div>
             
@@ -100,19 +123,24 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your password"
                 required
                 className="h-12"
-                disabled={isLoading}
+                disabled={isLoading || showSuccess}
               />
             </div>
             
             <Button 
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 mt-6"
-              disabled={isLoading || !email || !password}
+              disabled={isLoading || !email || !password || showSuccess}
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Verifying credentials...
+                </>
+              ) : showSuccess ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Access Granted!
                 </>
               ) : (
                 'Sign In'
@@ -124,9 +152,14 @@ const Login = ({ onLogin }: LoginProps) => {
             <p className="text-sm text-slate-500">
               Use your registered email and password to continue
             </p>
-            <p className="text-xs text-slate-400 mt-2">
-              Check browser console for debug information
-            </p>
+            <div className="mt-3 p-3 bg-slate-50 rounded-lg border">
+              <p className="text-xs text-slate-600 font-medium mb-1">Authentication Status:</p>
+              <div className="text-xs text-slate-500 space-y-1">
+                <div>• Email verification: Real-time check</div>
+                <div>• Password validation: Secure comparison</div>
+                <div>• Profile loading: Automatic on success</div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

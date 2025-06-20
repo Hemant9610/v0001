@@ -1,12 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '@/hooks/useAuth';
-import { Loader2, CheckCircle, XCircle, Database, Wifi, Eye } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface LoginProps {
   onLogin: () => void;
@@ -15,52 +11,15 @@ interface LoginProps {
 const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      return;
-    }
-
-    console.log('🔐 Submitting login form with:', { email, password: '***' })
-    const success = await login(email, password);
-    console.log('📊 Login result:', success)
-    
-    if (success) {
-      console.log('✅ Login successful, showing success message')
-      setShowSuccess(true);
-      setTimeout(() => {
-        console.log('🚀 Calling onLogin callback')
-        onLogin();
-      }, 2000); // Show success message for 2 seconds
-    }
-  };
-
-  // Clear error when user starts typing
-  useEffect(() => {
-    if (error && (email || password)) {
-      clearError();
-    }
-  }, [email, password, error, clearError]);
-
-  // If already authenticated, trigger onLogin
-  useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      console.log('✅ Already authenticated, calling onLogin')
+    // Simple validation - in a real app, you'd validate credentials
+    if (email && password) {
+      console.log('Login attempted with:', { email, password });
       onLogin();
     }
-  }, [isAuthenticated, isLoading, onLogin]);
-
-  // Clear success message when user starts typing again
-  useEffect(() => {
-    if (showSuccess && (email || password)) {
-      setShowSuccess(false);
-    }
-  }, [email, password, showSuccess]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
@@ -82,24 +41,6 @@ const Login = ({ onLogin }: LoginProps) => {
         </CardHeader>
         
         <CardContent>
-          {/* Success Message */}
-          {showSuccess && (
-            <Alert className="mb-4 border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                ✅ Access granted! Welcome back. Redirecting...
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Error Message */}
-          {error && !showSuccess && (
-            <Alert variant="destructive" className="mb-4">
-              <XCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -111,7 +52,6 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your email"
                 required
                 className="h-12"
-                disabled={isLoading || showSuccess}
               />
             </div>
             
@@ -125,82 +65,21 @@ const Login = ({ onLogin }: LoginProps) => {
                 placeholder="Enter your password"
                 required
                 className="h-12"
-                disabled={isLoading || showSuccess}
               />
             </div>
             
             <Button 
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 mt-6"
-              disabled={isLoading || !email || !password || showSuccess}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying credentials...
-                </>
-              ) : showSuccess ? (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Access Granted!
-                </>
-              ) : (
-                'Sign In'
-              )}
+              Sign In
             </Button>
           </form>
           
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500 mb-3">
-              Use your registered email and password to continue
+            <p className="text-sm text-slate-500">
+              Demo: Use any email and password to continue
             </p>
-            
-            {/* System Status */}
-            <div className="p-3 bg-slate-50 rounded-lg border">
-              <p className="text-xs text-slate-600 font-medium mb-2 flex items-center justify-center gap-1">
-                <Database size={12} />
-                System Status
-              </p>
-              <div className="text-xs text-slate-500 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span>Database Connection:</span>
-                  <span className="flex items-center gap-1">
-                    <Wifi size={10} className="text-green-500" />
-                    <span className="text-green-600">Connected</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Authentication:</span>
-                  <span className="text-blue-600">Ready</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Profile Loading:</span>
-                  <span className="text-blue-600">Available</span>
-                </div>
-              </div>
-            </div>
-
-            {/* View All Credentials Button */}
-            <div className="mt-4">
-              <Button
-                onClick={() => navigate('/credentials')}
-                variant="outline"
-                size="sm"
-                className="w-full flex items-center gap-2"
-              >
-                <Eye size={14} />
-                View All Database Credentials
-              </Button>
-            </div>
-
-            {/* Database Schema Info */}
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs text-blue-700 font-medium mb-1">Database Schema (v0001_auth):</p>
-              <div className="text-xs text-blue-600 space-y-1">
-                <div>Columns: id, mail, password, student_id, created_at</div>
-                <div>Note: Email is stored in the 'mail' column</div>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>

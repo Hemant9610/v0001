@@ -1,198 +1,181 @@
-import { MapPin, Calendar, Building2, GraduationCap, Mail, ArrowLeft, LogOut } from 'lucide-react';
+import { MapPin, Calendar, Building2, GraduationCap, Mail, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profile, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  // Use profile data if available, otherwise fallback to default data
-  const profileData = profile || {
-    first_name: 'Student',
-    last_name: 'User',
-    email: user?.mail || '',  // Changed from user?.email to user?.mail
-    student_id: user?.student_id || '',
-  };
-
-  const displayName = `${profileData.first_name || 'Student'} ${profileData.last_name || 'User'}`;
-  const initials = `${profileData.first_name?.[0] || 'S'}${profileData.last_name?.[0] || 'U'}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-4xl mx-auto p-6">
-        {/* Header with Back and Logout buttons */}
-        <div className="flex justify-between items-center mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-slate-600 hover:text-blue-600 transition"
-          >
-            <ArrowLeft size={20} className="mr-1" />
-            <span className="text-sm font-medium">Back</span>
-          </button>
-
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <LogOut size={16} />
-            Logout
-          </Button>
-        </div>
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-slate-600 hover:text-blue-600 transition mb-6"
+        >
+          <ArrowLeft size={20} className="mr-1" />
+          <span className="text-sm font-medium">Back</span>
+        </button>
 
         {/* Header Card */}
         <Card className="mb-6 overflow-hidden">
           <div className="h-22 bg-white/80 backdrop-blur-md border-b border-slate-200"></div>
           <CardContent className="pt-6 pb-6">
             <div className="flex flex-col sm:flex-row gap-6">
-              {/* Avatar */}
+              {/* Avatar at top-left */}
               <div className="flex-shrink-0">
                 <Avatar className="w-32 h-32 border-4 border-white shadow-md">
                   <AvatarImage
-                    src={profileData.profile_image || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"}
+                    src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=400&fit=crop&crop=face"
                     alt="Profile"
                   />
-                  <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+                  <AvatarFallback className="text-2xl">SA</AvatarFallback>
                 </Avatar>
               </div>
 
               {/* Profile Info */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl font-semibold text-slate-800 mb-1">{displayName}</h1>
-                <p className="text-base text-slate-600 mb-2">
-                  Student ID: {profileData.student_id}
-                </p>
+                <h1 className="text-3xl font-semibold text-slate-800 mb-1">Sarah Anderson</h1>
+                <p className="text-base text-slate-600 mb-2">Senior UI/UX Designer & Product Manager</p>
 
                 <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-2">
                   <div className="flex items-center gap-1">
-                    <Mail size={14} />
-                    <span>{profileData.email || user?.mail}</span>
+                    <Building2 size={14} />
+                    <span>TechCorp Solutions</span>
                   </div>
-                  {profile?.skills && (
-                    <div className="flex items-center gap-1">
-                      <GraduationCap size={14} />
-                      <span>Skills Available</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <GraduationCap size={14} />
+                    <span>Stanford University</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MapPin size={14} />
+                    <span>San Francisco, CA</span>
+                  </div>
                 </div>
 
-                {profile && (
-                  <p className="mt-4 text-slate-700 text-sm leading-relaxed">
-                    Welcome to your profile! Your information is securely stored and ready for job matching.
-                  </p>
-                )}
+                <div className="flex items-center gap-1 text-blue-600 text-sm">
+                  <Mail size={14} />
+                  <span>sarah.anderson@email.com</span>
+                </div>
 
-                {/* Debug Info */}
-                {user && (
-                  <div className="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
-                    <p className="font-medium mb-1">Account Info:</p>
-                    <p>Email: {user.mail}</p>
-                    <p>Student ID: {user.student_id}</p>
-                    <p>Profile Loaded: {profile ? 'Yes' : 'No'}</p>
-                  </div>
-                )}
+                <p className="mt-4 text-slate-700 text-sm leading-relaxed">
+                  Passionate UI/UX Designer with 6+ years of experience creating user-centered digital experiences. Specialized in design systems, mobile interfaces, and cross-functional collaboration.
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Skills Section (if available) */}
-        {profile?.skills && (
-          <Card className="mb-6">
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-slate-800">Skills</h2>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {Array.isArray(profile.skills) ? (
-                  profile.skills.map((skill: string, index: number) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full border border-blue-200"
-                    >
-                      {skill}
-                    </span>
-                  ))
-                ) : (
-                  <p className="text-slate-600">Skills data available</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Projects Section (if available) */}
-        {profile?.projects && (
-          <Card className="mb-6">
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-slate-800">Projects</h2>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">Project information available in your profile.</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Experience Section (if available) */}
-        {profile?.experience && (
-          <Card className="mb-6">
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-slate-800">Experience</h2>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">Experience information available in your profile.</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Default Experience Section for demo */}
-        {!profile && (
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-slate-800">Experience</h2>
-            </CardHeader>
-            <CardContent className="divide-y divide-slate-200">
-              <div className="flex gap-4 py-6">
+        {/* Experience Section */}
+        <Card>
+          <CardHeader>
+            <h2 className="text-xl font-semibold text-slate-800">Experience</h2>
+          </CardHeader>
+          <CardContent className="divide-y divide-slate-200">
+            {[
+              {
+                title: 'Senior UI/UX Designer & Product Manager',
+                company: 'TechCorp Solutions',
+                time: 'Jan 2022 - Present • 2 yrs 11 mos',
+                location: 'San Francisco, CA • Remote',
+                description:
+                  'Leading design initiatives for enterprise SaaS products, managing a team of 4 designers and collaborating closely with product and engineering teams.',
+                points: [
+                  'Redesigned core dashboard resulting in 40% increase in user engagement',
+                  'Established design system adopted across 5 product teams',
+                  'Led user research initiatives with 200+ participants',
+                  'Mentored junior designers and interns',
+                ],
+                skills: [
+                  'Figma',
+                  'Design Systems',
+                  'User Research',
+                  'Product Management',
+                  'Team Leadership',
+                ],
+              },
+              {
+                title: 'UI/UX Designer',
+                company: 'DesignStudio Inc.',
+                time: 'Jun 2020 - Dec 2021 • 1 yr 7 mos',
+                location: 'New York, NY',
+                description:
+                  'Designed mobile and web interfaces for fintech and e-commerce clients, focusing on conversion optimization and user experience improvements.',
+                points: [
+                  'Increased app conversion rates by 25%',
+                  'Created wireframes and prototypes for 15+ projects',
+                  'Collaborated with developers to ensure pixel-perfect implementation',
+                ],
+                skills: [
+                  'Sketch',
+                  'Figma',
+                  'Prototyping',
+                  'Mobile Design',
+                  'Web Design',
+                ],
+              },
+              {
+                title: 'Junior UI Designer',
+                company: 'Creative Agency',
+                time: 'Aug 2018 - May 2020 • 1 yr 10 mos',
+                location: 'Los Angeles, CA',
+                description:
+                  'Created visual designs for digital marketing campaigns and brand identities for clients in entertainment and lifestyle sectors.',
+                points: [
+                  'Designed marketing materials for 20+ campaigns',
+                  'Created brand guidelines and visual identity systems',
+                  'Collaborated with senior designers on large-scale projects',
+                ],
+                skills: [
+                  'Adobe Creative Suite',
+                  'Brand Design',
+                  'Marketing Design',
+                  'Visual Design',
+                ],
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex gap-4 py-6">
                 <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
                   <Building2 size={20} />
                 </div>
 
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-800 mb-0.5">Student</h3>
-                  <p className="text-slate-600 text-sm mb-1">Academic Institution</p>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-0.5">{item.title}</h3>
+                  <p className="text-slate-600 text-sm mb-1">{item.company}</p>
                   <div className="flex items-center gap-4 text-xs text-slate-500 mb-2">
                     <div className="flex items-center gap-1">
                       <Calendar size={12} />
-                      <span>Current</span>
+                      <span>{item.time}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MapPin size={12} />
+                      <span>{item.location}</span>
                     </div>
                   </div>
 
-                  <p className="text-sm text-slate-700 mb-2">
-                    Currently enrolled as a student, building skills and preparing for career opportunities.
-                  </p>
+                  <p className="text-sm text-slate-700 mb-2">{item.description}</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+                    {item.points.map((point, idx) => (
+                      <li key={idx}>{point}</li>
+                    ))}
+                  </ul>
 
                   <div className="flex flex-wrap gap-2 mt-4">
-                    <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-300">
-                      Learning
-                    </span>
-                    <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-300">
-                      Development
-                    </span>
+                    {item.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="px-3 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-300"
+                      >
+                        {skill}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

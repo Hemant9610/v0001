@@ -1,42 +1,59 @@
 import React from 'react'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { Auth } from './components/Auth'
-import { Dashboard } from './components/Dashboard'
+import { useState } from 'react'
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import Index from "./pages/Index"
+import Profile from "./pages/Profile"
+import NotFound from "./pages/NotFound"
+import Login from "./pages/Login"
+import CredentialsDisplay from "./pages/CredentialsDisplay"
 
 const queryClient = new QueryClient()
 
-const AppContent: React.FC = () => {
-  const { user, loading } = useAuth()
+const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  if (loading) {
+  const handleLogin = () => {
+    console.log('🚀 App: Login successful, setting isLoggedIn to true')
+    setIsLoggedIn(true)
+  }
+
+  // Show login page if user is not logged in
+  if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center mb-4 mx-auto">
-            <div className="w-4 h-4 bg-white rounded-sm animate-pulse"></div>
-          </div>
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/credentials" element={<CredentialsDisplay />} />
+              <Route path="*" element={<Login onLogin={handleLogin} />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
     )
   }
 
-  return user ? <Dashboard /> : <Auth />
-}
-
-const App: React.FC = () => {
+  // Show main app if user is logged in
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <AppContent />
-          <Toaster />
-          <Sonner />
-        </AuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/credentials" element={<CredentialsDisplay />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   )

@@ -6,14 +6,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/contexts/AuthContext'
-import { debugAuth } from '@/lib/debugAuth'
 
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [debugInfo, setDebugInfo] = useState('')
   
   const { signIn, user } = useAuth()
   const navigate = useNavigate()
@@ -23,28 +21,10 @@ const Login = () => {
     return <Navigate to="/" replace />
   }
 
-  const handleDebugTest = async () => {
-    setDebugInfo('Running diagnostic...')
-    await debugAuth.runDiagnostic()
-    
-    // Test with current form values if provided
-    if (email && password) {
-      const result = await debugAuth.testUserLogin(email, password)
-      if (result.success) {
-        setDebugInfo('✅ Debug test successful! User credentials are valid.')
-      } else {
-        setDebugInfo(`❌ Debug test failed: ${result.error}`)
-      }
-    } else {
-      setDebugInfo('✅ Diagnostic complete. Check browser console for details.')
-    }
-  }
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setDebugInfo('')
 
     // Basic validation
     if (!email.trim()) {
@@ -75,15 +55,6 @@ const Login = () => {
       if (error) {
         console.error('Sign in error:', error)
         setError(error.message)
-        
-        // Run debug test on failure
-        console.log('🔍 Running debug test due to login failure...')
-        const debugResult = await debugAuth.testUserLogin(email, password)
-        if (debugResult.success) {
-          setDebugInfo('⚠️ Debug test passed but login failed. Check AuthContext implementation.')
-        } else {
-          setDebugInfo(`Debug test also failed: ${debugResult.error}`)
-        }
       } else {
         console.log('✅ Login successful')
         navigate('/')
@@ -151,34 +122,13 @@ const Login = () => {
               </Alert>
             )}
             
-            {debugInfo && (
-              <Alert>
-                <AlertDescription className="text-xs font-mono whitespace-pre-wrap">
-                  {debugInfo}
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            <div className="flex gap-2">
-              <Button 
-                type="submit"
-                disabled={loading}
-                className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                {loading ? 'Signing In...' : 'Sign In'}
-              </Button>
-              
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDebugTest}
-                disabled={loading}
-                className="h-12 px-3"
-                title="Run Debug Test"
-              >
-                🔍
-              </Button>
-            </div>
+            <Button 
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              {loading ? 'Signing In...' : 'Sign In'}
+            </Button>
           </form>
         </CardContent>
       </Card>

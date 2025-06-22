@@ -33,8 +33,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { SkillsDisplay } from '@/components/SkillsDisplay'
-import { parseSkillsFromJSONB } from '@/lib/skillsParser'
+import { parseSkillsFromJSONB, categorizeSkills, formatSkillsForDisplay } from '@/lib/skillsParser'
 
 const Profile = () => {
   const navigate = useNavigate()
@@ -196,14 +195,19 @@ const Profile = () => {
   console.log('🔍 Raw projects data:', studentProfile?.projects)
   console.log('🔍 Raw experience data:', studentProfile?.experience)
 
-  // Use the new skills parser for better handling
+  // Use the enhanced skills parser
   const skills = parseSkillsFromJSONB(studentProfile?.skills)
+  const categorizedSkills = categorizeSkills(skills)
+  const formattedSkills = formatSkillsForDisplay(studentProfile?.skills)
+  
   const projects = renderJSONBData(studentProfile?.projects, [])
   const experience = studentProfile?.experience || {}
   const certifications = renderJSONBData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
 
-  console.log('✅ Processed skills with new parser:', skills)
+  console.log('✅ Processed skills with enhanced parser:', skills)
+  console.log('✅ Categorized skills:', categorizedSkills)
+  console.log('✅ Formatted skills:', formattedSkills)
   console.log('✅ Processed projects:', projects)
   console.log('✅ Processed experience:', experience)
   console.log('✅ Processed certifications:', certifications)
@@ -413,7 +417,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Skills Section with New Parser */}
+          {/* Enhanced Skills Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -432,16 +436,138 @@ const Profile = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Use the new SkillsDisplay component */}
-              <SkillsDisplay 
-                skillsData={studentProfile?.skills}
-                showCategories={true}
-                showLevels={true}
-              />
-              
+              {skills.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Skills Overview */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{skills.length}</div>
+                      <div className="text-sm text-gray-600">Total Skills</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {Object.keys(categorizedSkills).length}
+                      </div>
+                      <div className="text-sm text-gray-600">Categories</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {formattedSkills.filter(s => s.level === 'Advanced').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Advanced</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {formattedSkills.filter(s => s.level === 'Expert').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Expert</div>
+                    </div>
+                  </div>
+
+                  {/* All Skills Grid */}
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <Code size={20} className="text-blue-600" />
+                      All Skills ({skills.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {formattedSkills.map((skill, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 group"
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                              <Code size={14} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <span className="font-medium text-gray-900 text-sm">{skill.name}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Progress 
+                                  value={
+                                    skill.level === 'Expert' ? 100 :
+                                    skill.level === 'Advanced' ? 80 :
+                                    skill.level === 'Intermediate' ? 60 : 40
+                                  } 
+                                  className="w-16 h-1.5" 
+                                />
+                                <span className="text-xs text-gray-500">{skill.level}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {skill.category?.replace(' Skills', '') || 'Other'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Categorized Skills */}
+                  <div className="space-y-4">
+                    {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
+                      categorySkills.length > 0 && (
+                        <div key={category} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-800">{category}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {categorySkills.length}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {categorySkills.map((skill: string, index: number) => (
+                              <Badge
+                                key={index}
+                                className={`px-3 py-1 ${getCategoryColor(category)}`}
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+
+                  {/* Top Skills Highlight */}
+                  <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp size={20} className="text-orange-600" />
+                      <h3 className="font-semibold text-gray-800">Top Skills</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {skills.slice(0, 5).map((skill: string, index: number) => (
+                        <Badge
+                          key={index}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
+                        >
+                          <Star size={12} className="mr-1" />
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Code size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found in database</h3>
+                  <p className="text-gray-600 mb-4">
+                    {studentProfile ? 
+                      'Your profile exists but no skills are recorded. Add your skills to showcase your expertise.' :
+                      'No profile data found. Please check your database connection.'
+                    }
+                  </p>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Plus size={16} className="mr-2" />
+                    Add your first skill
+                  </Button>
+                </div>
+              )}
+
               {/* Refresh button for development */}
               {import.meta.env.DEV && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-6 pt-4 border-t border-gray-200">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -530,12 +656,22 @@ const Profile = () => {
                               {/* Skills used in this role */}
                               <div className="mt-3 pt-3 border-t border-gray-100">
                                 <p className="text-xs text-gray-500 mb-2">Skills used:</p>
-                                <SkillsDisplay 
-                                  skillsData={studentProfile?.skills}
-                                  compact={true}
-                                  maxSkillsToShow={4}
-                                  showCategories={false}
-                                />
+                                <div className="flex flex-wrap gap-1">
+                                  {skills.slice(0, 4).map((skill: string, skillIndex: number) => (
+                                    <Badge
+                                      key={skillIndex}
+                                      variant="secondary"
+                                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                    >
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                  {skills.length > 4 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{skills.length - 4} more
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -766,13 +902,14 @@ const Profile = () => {
                   <p><strong>Profile Loaded:</strong> {studentProfile ? 'Yes' : 'No'}</p>
                   <p><strong>Student ID:</strong> {getStudentId()}</p>
                   <p><strong>Database ID:</strong> {studentProfile?.id}</p>
-                  <p><strong>Skills Count (New Parser):</strong> {skills.length}</p>
+                  <p><strong>Skills Count (Enhanced Parser):</strong> {skills.length}</p>
                   <p><strong>Projects Count:</strong> {projects.length}</p>
                   <p><strong>Experience Keys:</strong> {Object.keys(experience).length}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
                   <p><strong>Raw Skills Data Type:</strong> {typeof studentProfile?.skills}</p>
                   <p><strong>Raw Skills Data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
-                  <p><strong>Processed Skills (New Parser):</strong> {JSON.stringify(skills)}</p>
+                  <p><strong>Processed Skills (Enhanced Parser):</strong> {JSON.stringify(skills)}</p>
+                  <p><strong>Categorized Skills:</strong> {JSON.stringify(Object.keys(categorizedSkills))}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -789,6 +926,23 @@ const Profile = () => {
       </div>
     </div>
   )
+}
+
+// Helper function to get category-specific colors
+const getCategoryColor = (category: string): string => {
+  const colorMap: { [key: string]: string } = {
+    'Programming Languages': 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700',
+    'Web Technologies': 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700',
+    'Databases': 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700',
+    'Cloud & DevOps': 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700',
+    'Cybersecurity': 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700',
+    'Networking': 'bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700',
+    'Operating Systems': 'bg-gradient-to-r from-gray-500 to-slate-600 text-white hover:from-gray-600 hover:to-slate-700',
+    'Tools & Software': 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700',
+    'Other Skills': 'bg-gradient-to-r from-slate-500 to-gray-600 text-white hover:from-slate-600 hover:to-gray-700'
+  }
+  
+  return colorMap[category] || colorMap['Other Skills']
 }
 
 export default Profile

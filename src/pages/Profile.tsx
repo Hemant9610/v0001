@@ -39,230 +39,120 @@ import { supabase } from '@/lib/supabase'
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { user, studentProfile, signOut, refreshStudentProfile } = useAuth()
-  const [loading, setLoading] = useState(false)
+  const { user, signOut } = useAuth()
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [profileData, setProfileData] = useState(null)
   const [skills, setSkills] = useState([])
-  const [skillsLoading, setSkillsLoading] = useState(false)
-  const [rawSkillsData, setRawSkillsData] = useState(null)
-  const [debugInfo, setDebugInfo] = useState(null)
 
-  // ENHANCED DIAGNOSTIC FUNCTION
-  const runDiagnostic = async () => {
-    const diagnostic = {
-      userInfo: {
-        loggedInUser: user,
-        studentProfile: studentProfile,
-        userStudentId: user?.student_id,
-        profileStudentId: studentProfile?.student_id
-      },
-      databaseQueries: {},
-      availableStudents: []
+  // Function to fetch student profile directly from database
+  const fetchStudentProfile = async () => {
+    if (!user?.student_id) {
+      setError('No student ID available')
+      setLoading(false)
+      return
     }
 
     try {
-      // 1. Check what students exist in database
-      const { data: allStudents, error: allError } = await supabase
+      setLoading(true)
+      setError('')
+
+      // Query the v0001_student_database table directly
+      const { data, error: dbError } = await supabase
         .from('v0001_student_database')
-        .select('id, student_id, first_name, last_name, email, skills')
-        .limit(10)
+        .select('*')
+        .eq('student_id', user.student_id)
+        .maybeSingle()
 
-      if (!allError && allStudents) {
-        diagnostic.availableStudents = allStudents
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`)
       }
 
-      // 2. Try to find student by the logged-in user's student_id
-      if (user?.student_id) {
-        const { data: byStudentId, error: studentIdError } = await supabase
-          .from('v0001_student_database')
-          .select('*')
-          .eq('student_id', user.student_id)
-
-        diagnostic.databaseQueries.byStudentId = {
-          query: user.student_id,
-          result: byStudentId,
-          error: studentIdError,
-          count: byStudentId?.length || 0
-        }
-      }
-
-      // 3. Try to find student by email
-      if (user?.email) {
-        const { data: byEmail, error: emailError } = await supabase
+      if (!data) {
+        // Try to find by email as fallback
+        const { data: emailData, error: emailError } = await supabase
           .from('v0001_student_database')
           .select('*')
           .eq('email', user.email)
+          .maybeSingle()
 
-        diagnostic.databaseQueries.byEmail = {
-          query: user.email,
-          result: byEmail,
-          error: emailError,
-          count: byEmail?.length || 0
+        if (emailError) {
+          throw new Error(`Email lookup error: ${emailError.message}`)
         }
-      }
 
-      // 4. Check auth table for user
-      const { data: authData, error: authError } = await supabase
-        .from('v0001_auth')
-        .select('*')
-        .eq('email', user?.email)
+        if (!emailData) {
+          setError('No student profile found in database')
+          setLoading(false)
+          return
+        }
 
-      diagnostic.databaseQueries.authTable = {
-        query: user?.email,
-        result: authData,
-        error: authError,
-        count: authData?.length || 0
-      }
-
-      setDebugInfo(diagnostic)
-
-      // Try to find a working student profile
-      let workingProfile = null
-      
-      if (diagnostic.databaseQueries.byStudentId?.result?.length > 0) {
-        workingProfile = diagnostic.databaseQueries.byStudentId.result[0]
-      } else if (diagnostic.databaseQueries.byEmail?.result?.length > 0) {
-        workingProfile = diagnostic.databaseQueries.byEmail.result[0]
-      } else if (diagnostic.availableStudents.length > 0) {
-        // Use first available student as fallback
-        workingProfile = diagnostic.availableStudents[0]
-      }
-
-      if (workingProfile) {
-        const parsedSkills = parseSkillsDirectly(workingProfile.skills)
-        setSkills(parsedSkills)
-        setRawSkillsData(workingProfile.skills)
-        setError('')
+        setProfileData(emailData)
       } else {
-        setError('No student profiles found in database')
+        setProfileData(data)
       }
 
+      // Parse skills from the profile data
+      if (data?.skills || emailData?.skills) {
+        const skillsData = data?.skills || emailData?.skills
+        const parsedSkills = parseSkillsFromDatabase(skillsData)
+        setSkills(parsedSkills)
+      }
+
+      setLoading(false)
     } catch (err) {
-      setError(`Diagnostic failed: ${err.message}`)
+      setError(err.message)
+      setLoading(false)
     }
   }
 
-  // DIRECT FUNCTION TO PARSE SKILLS - SIMPLIFIED AND ROBUST
-  const parseSkillsDirectly = (skillsData) => {
-    // Handle null/undefined
+  // Function to parse skills from JSONB format
+  const parseSkillsFromDatabase = (skillsData) => {
     if (!skillsData || skillsData === null || skillsData === undefined) {
       return []
     }
     
     // Handle direct arrays
     if (Array.isArray(skillsData)) {
-      const filtered = skillsData.filter(skill => skill && typeof skill === 'string' && skill.trim())
-      return filtered
+      return skillsData.filter(skill => skill && typeof skill === 'string' && skill.trim())
     }
     
-    // Handle string format (most common for JSONB)
+    // Handle JSONB string format
     if (typeof skillsData === 'string') {
       try {
-        // Try direct JSON parse first
-        let parsed = JSON.parse(skillsData)
+        let cleanedData = skillsData.trim()
         
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
-          return filtered
+        // Remove outer quotes if present
+        if (cleanedData.startsWith('"') && cleanedData.endsWith('"')) {
+          cleanedData = cleanedData.slice(1, -1)
         }
         
-        // If not array, treat as single skill
+        // Unescape escaped quotes
+        cleanedData = cleanedData.replace(/\\"/g, '"')
+        
+        const parsed = JSON.parse(cleanedData)
+        
+        if (Array.isArray(parsed)) {
+          return parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
+        }
+        
         if (typeof parsed === 'string' && parsed.trim()) {
           return [parsed.trim()]
         }
         
-      } catch (firstError) {
-        try {
-          // Clean up the string and try again
-          let cleaned = skillsData.trim()
-          
-          // Remove outer quotes if present
-          if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-            cleaned = cleaned.slice(1, -1)
-          }
-          
-          // Unescape quotes
-          cleaned = cleaned.replace(/\\"/g, '"')
-          
-          // Try parsing again
-          const parsed = JSON.parse(cleaned)
-          
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
-            return filtered
-          }
-          
-          if (typeof parsed === 'string' && parsed.trim()) {
-            return [parsed.trim()]
-          }
-          
-        } catch (secondError) {
-          // Treat as plain text
-          const trimmed = skillsData.trim()
-          return trimmed ? [trimmed] : []
-        }
+        return []
+      } catch (err) {
+        const trimmed = skillsData.trim()
+        return trimmed ? [trimmed] : []
       }
     }
     
     // Handle object format
     if (typeof skillsData === 'object' && skillsData !== null) {
       const values = Object.values(skillsData).flat()
-      const filtered = values.filter(skill => skill && typeof skill === 'string' && skill.trim())
-      return filtered
+      return values.filter(skill => skill && typeof skill === 'string' && skill.trim())
     }
     
     return []
-  }
-
-  // DIRECT FUNCTION TO LOAD SKILLS FROM DATABASE
-  const loadSkillsDirectly = async () => {
-    if (!user?.student_id) {
-      await runDiagnostic()
-      return
-    }
-    
-    setSkillsLoading(true)
-    setError('')
-    
-    try {
-      // Direct database query - using maybeSingle() instead of single()
-      const { data, error } = await supabase
-        .from('v0001_student_database')
-        .select('skills, first_name, last_name, student_id')
-        .eq('student_id', user.student_id)
-        .maybeSingle()
-      
-      if (error) {
-        setError(`Database error: ${error.message}`)
-        // Run diagnostic to find the issue
-        await runDiagnostic()
-        return
-      }
-      
-      if (!data) {
-        setError('No student profile found for your student ID')
-        await runDiagnostic()
-        return
-      }
-      
-      // Store raw data for debugging
-      setRawSkillsData(data.skills)
-      
-      // Parse skills directly
-      const parsedSkills = parseSkillsDirectly(data.skills)
-      
-      setSkills(parsedSkills)
-      
-      if (parsedSkills.length === 0) {
-        setError('No skills found in profile')
-      }
-      
-    } catch (err) {
-      setError(`Unexpected error: ${err.message}`)
-      await runDiagnostic()
-    } finally {
-      setSkillsLoading(false)
-    }
   }
 
   // Function to categorize skills
@@ -317,71 +207,49 @@ const Profile = () => {
     return colors[category] || colors['Other']
   }
 
-  // Load skills when component mounts or user changes
+  // Load profile data when component mounts
   useEffect(() => {
-    if (user?.student_id) {
-      loadSkillsDirectly()
-    } else {
-      runDiagnostic()
-    }
+    fetchStudentProfile()
   }, [user?.student_id])
-
-  // Also try to load from studentProfile if available
-  useEffect(() => {
-    if (studentProfile?.skills && skills.length === 0) {
-      const parsedFromProfile = parseSkillsDirectly(studentProfile.skills)
-      if (parsedFromProfile.length > 0) {
-        setSkills(parsedFromProfile)
-        setRawSkillsData(studentProfile.skills)
-      }
-    }
-  }, [studentProfile])
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
   }
 
-  // Helper functions for user info - FIXED TO USE DATABASE NAMES ONLY
+  // Helper functions for user info - ONLY use database data
   const getInitials = () => {
-    // Only use database first_name and last_name, never email
-    if (studentProfile?.first_name && studentProfile?.last_name) {
-      return `${studentProfile.first_name.charAt(0).toUpperCase()}${studentProfile.last_name.charAt(0).toUpperCase()}`
+    if (profileData?.first_name && profileData?.last_name) {
+      return `${profileData.first_name.charAt(0).toUpperCase()}${profileData.last_name.charAt(0).toUpperCase()}`
     }
-    if (studentProfile?.first_name) {
-      return studentProfile.first_name.charAt(0).toUpperCase()
+    if (profileData?.first_name) {
+      return profileData.first_name.charAt(0).toUpperCase()
     }
-    if (studentProfile?.last_name) {
-      return studentProfile.last_name.charAt(0).toUpperCase()
-    }
-    // Only fallback to email if no database names exist
-    if (user?.email) {
-      return user.email.charAt(0).toUpperCase()
+    if (profileData?.last_name) {
+      return profileData.last_name.charAt(0).toUpperCase()
     }
     return 'U'
   }
 
   const getFullName = () => {
-    // ONLY use database first_name and last_name
-    if (studentProfile?.first_name && studentProfile?.last_name) {
-      return `${studentProfile.first_name} ${studentProfile.last_name}`
+    if (profileData?.first_name && profileData?.last_name) {
+      return `${profileData.first_name} ${profileData.last_name}`
     }
-    if (studentProfile?.first_name) {
-      return studentProfile.first_name
+    if (profileData?.first_name) {
+      return profileData.first_name
     }
-    if (studentProfile?.last_name) {
-      return studentProfile.last_name
+    if (profileData?.last_name) {
+      return profileData.last_name
     }
-    // Only show "Student Profile" if no database names exist
     return 'Student Profile'
   }
 
   const getUserEmail = () => {
-    return studentProfile?.email || user?.email || 'No email available'
+    return profileData?.email || user?.email || 'No email available'
   }
 
   const getStudentId = () => {
-    return studentProfile?.student_id || user?.student_id || 'No student ID'
+    return profileData?.student_id || user?.student_id || 'No student ID'
   }
 
   const categorizedSkills = categorizeSkills(skills)
@@ -393,6 +261,29 @@ const Profile = () => {
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="space-y-2">
+            <Button onClick={fetchStudentProfile} className="w-full">
+              <RefreshCw size={16} className="mr-2" />
+              Try Again
+            </Button>
+            <Button onClick={handleSignOut} variant="outline" className="w-full">
+              <LogOut size={16} className="mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -442,7 +333,7 @@ const Profile = () => {
                 <div className="relative">
                   <Avatar className="w-40 h-40 border-4 border-white shadow-lg">
                     <AvatarImage
-                      src={studentProfile?.profile_image}
+                      src={profileData?.profile_image}
                       alt={`${getFullName()}'s profile picture`}
                     />
                     <AvatarFallback className="text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
@@ -454,7 +345,7 @@ const Profile = () => {
                 <div className="flex-1 pt-4 sm:pt-8">
                   <div className="flex items-start justify-between">
                     <div>
-                      {/* Display ONLY database first_name and last_name */}
+                      {/* Display database first_name and last_name */}
                       <h1 className="text-4xl font-bold text-gray-900 mb-2">
                         {getFullName()}
                       </h1>
@@ -484,12 +375,60 @@ const Profile = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 mt-4">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6">
+                      Open to work
+                    </Button>
+                    <Button variant="outline" className="px-6">
+                      Add profile section
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="px-6"
+                      onClick={fetchStudentProfile}
+                    >
+                      <RefreshCw size={16} className="mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Status */}
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Profile Active</h3>
+                    <p className="text-sm text-gray-700">
+                      Your profile is loaded from the database with {skills.length} skills
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* SKILLS SECTION */}
+          {/* About Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <h2 className="text-xl font-semibold">About</h2>
+              <Button variant="ghost" size="sm">
+                <Edit3 size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700 leading-relaxed">
+                {profileData?.experience?.summary || 
+                 `Passionate student with expertise in modern technologies. 
+                 Currently pursuing studies and seeking opportunities in the technology sector.`}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Skills Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -497,47 +436,19 @@ const Profile = () => {
                 <Badge variant="secondary" className="bg-blue-100 text-blue-700">
                   {skills.length} skills
                 </Badge>
-                {skillsLoading && (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                )}
               </div>
               <div className="flex gap-2">
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={loadSkillsDirectly}
-                  disabled={skillsLoading}
+                  onClick={fetchStudentProfile}
                 >
-                  <RefreshCw size={16} className={skillsLoading ? 'animate-spin' : ''} />
+                  <RefreshCw size={16} />
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {/* Error Display */}
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle size={16} className="text-red-600" />
-                    <p className="text-red-700 font-medium">⚠️ {error}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={loadSkillsDirectly}
-                    >
-                      Try Again
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {skillsLoading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-                  <p className="text-gray-600">Loading skills...</p>
-                </div>
-              ) : skills.length > 0 ? (
+              {skills.length > 0 ? (
                 <div className="space-y-6">
                   {/* Skills Overview */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
@@ -652,27 +563,21 @@ const Profile = () => {
                   <Code size={64} className="mx-auto mb-4 text-gray-300" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found</h3>
                   <p className="text-gray-600 mb-4">
-                    {user?.student_id ? 
-                      'We could not find any skills in your profile.' :
-                      'No user logged in or student ID not available.'
-                    }
+                    No skills data found in your profile
                   </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button 
-                      onClick={loadSkillsDirectly}
-                      disabled={skillsLoading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <RefreshCw size={16} className={skillsLoading ? 'animate-spin mr-2' : 'mr-2'} />
-                      Reload Skills
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={fetchStudentProfile}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <RefreshCw size={16} className="mr-2" />
+                    Reload Profile
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Simple Projects Section */}
+          {/* Projects Section */}
           <Card>
             <CardHeader>
               <h2 className="text-xl font-semibold">Projects</h2>
@@ -686,6 +591,30 @@ const Profile = () => {
                   <Plus size={16} className="mr-2" />
                   Add project
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Database Info Card */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                <Database size={20} />
+                Profile Data Source
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p><strong>Database Table:</strong> v0001_student_database</p>
+                  <p><strong>Student ID:</strong> {profileData?.student_id}</p>
+                  <p><strong>Database ID:</strong> {profileData?.id}</p>
+                </div>
+                <div>
+                  <p><strong>First Name:</strong> {profileData?.first_name || 'Not set'}</p>
+                  <p><strong>Last Name:</strong> {profileData?.last_name || 'Not set'}</p>
+                  <p><strong>Email:</strong> {profileData?.email || 'Not set'}</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -22,7 +22,9 @@ import {
   TrendingUp,
   BookOpen,
   Target,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  Database
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -43,6 +45,117 @@ const Profile = () => {
   const [skills, setSkills] = useState([])
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [rawSkillsData, setRawSkillsData] = useState(null)
+  const [debugInfo, setDebugInfo] = useState(null)
+
+  // ENHANCED DIAGNOSTIC FUNCTION
+  const runDiagnostic = async () => {
+    console.log('🔍 Running comprehensive diagnostic...')
+    
+    const diagnostic = {
+      userInfo: {
+        loggedInUser: user,
+        studentProfile: studentProfile,
+        userStudentId: user?.student_id,
+        profileStudentId: studentProfile?.student_id
+      },
+      databaseQueries: {},
+      availableStudents: []
+    }
+
+    try {
+      // 1. Check what students exist in database
+      console.log('🔍 Step 1: Checking all students in database...')
+      const { data: allStudents, error: allError } = await supabase
+        .from('v0001_student_database')
+        .select('id, student_id, first_name, last_name, email, skills')
+        .limit(10)
+
+      if (!allError && allStudents) {
+        diagnostic.availableStudents = allStudents
+        console.log('✅ Found students:', allStudents.map(s => ({
+          name: `${s.first_name} ${s.last_name}`,
+          student_id: s.student_id,
+          email: s.email
+        })))
+      }
+
+      // 2. Try to find student by the logged-in user's student_id
+      if (user?.student_id) {
+        console.log('🔍 Step 2: Searching by user student_id:', user.student_id)
+        const { data: byStudentId, error: studentIdError } = await supabase
+          .from('v0001_student_database')
+          .select('*')
+          .eq('student_id', user.student_id)
+
+        diagnostic.databaseQueries.byStudentId = {
+          query: user.student_id,
+          result: byStudentId,
+          error: studentIdError,
+          count: byStudentId?.length || 0
+        }
+      }
+
+      // 3. Try to find student by email
+      if (user?.email) {
+        console.log('🔍 Step 3: Searching by email:', user.email)
+        const { data: byEmail, error: emailError } = await supabase
+          .from('v0001_student_database')
+          .select('*')
+          .eq('email', user.email)
+
+        diagnostic.databaseQueries.byEmail = {
+          query: user.email,
+          result: byEmail,
+          error: emailError,
+          count: byEmail?.length || 0
+        }
+      }
+
+      // 4. Check auth table for user
+      console.log('🔍 Step 4: Checking auth table...')
+      const { data: authData, error: authError } = await supabase
+        .from('v0001_auth')
+        .select('*')
+        .eq('email', user?.email)
+
+      diagnostic.databaseQueries.authTable = {
+        query: user?.email,
+        result: authData,
+        error: authError,
+        count: authData?.length || 0
+      }
+
+      setDebugInfo(diagnostic)
+      console.log('🔍 Diagnostic complete:', diagnostic)
+
+      // Try to find a working student profile
+      let workingProfile = null
+      
+      if (diagnostic.databaseQueries.byStudentId?.result?.length > 0) {
+        workingProfile = diagnostic.databaseQueries.byStudentId.result[0]
+      } else if (diagnostic.databaseQueries.byEmail?.result?.length > 0) {
+        workingProfile = diagnostic.databaseQueries.byEmail.result[0]
+      } else if (diagnostic.availableStudents.length > 0) {
+        // Use first available student as fallback
+        workingProfile = diagnostic.availableStudents[0]
+        console.log('⚠️ Using fallback student profile:', workingProfile)
+      }
+
+      if (workingProfile) {
+        console.log('✅ Found working profile, parsing skills...')
+        const parsedSkills = parseSkillsDirectly(workingProfile.skills)
+        setSkills(parsedSkills)
+        setRawSkillsData(workingProfile.skills)
+        setError('')
+      } else {
+        setError('No student profiles found in database')
+      }
+
+    } catch (err) {
+      console.error('❌ Diagnostic error:', err)
+      setError(`Diagnostic failed: ${err.message}`)
+    }
+  }
 
   // DIRECT FUNCTION TO PARSE SKILLS - SIMPLIFIED AND ROBUST
   const parseSkillsDirectly = (skillsData) => {
@@ -145,7 +258,8 @@ const Profile = () => {
   // DIRECT FUNCTION TO LOAD SKILLS FROM DATABASE
   const loadSkillsDirectly = async () => {
     if (!user?.student_id) {
-      console.log('❌ No student ID available')
+      console.log('❌ No student ID available, running diagnostic...')
+      await runDiagnostic()
       return
     }
     
@@ -165,12 +279,15 @@ const Profile = () => {
       if (error) {
         console.error('❌ Database error:', error)
         setError(`Database error: ${error.message}`)
+        // Run diagnostic to find the issue
+        await runDiagnostic()
         return
       }
       
       if (!data) {
-        console.log('❌ No student data found')
-        setError('No student profile found')
+        console.log('❌ No student data found, running diagnostic...')
+        setError('No student profile found for your student ID')
+        await runDiagnostic()
         return
       }
       
@@ -197,6 +314,7 @@ const Profile = () => {
     } catch (err) {
       console.error('❌ Unexpected error:', err)
       setError(`Unexpected error: ${err.message}`)
+      await runDiagnostic()
     } finally {
       setSkillsLoading(false)
     }
@@ -259,6 +377,9 @@ const Profile = () => {
     if (user?.student_id) {
       console.log('🚀 Component mounted, loading skills for:', user.student_id)
       loadSkillsDirectly()
+    } else {
+      console.log('🚀 No student ID, running diagnostic...')
+      runDiagnostic()
     }
   }, [user?.student_id])
 
@@ -427,7 +548,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* ENHANCED SKILLS SECTION - DIRECT DISPLAY */}
+          {/* ENHANCED SKILLS SECTION WITH DIAGNOSTIC INFO */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -448,8 +569,13 @@ const Profile = () => {
                 >
                   <RefreshCw size={16} className={skillsLoading ? 'animate-spin' : ''} />
                 </Button>
-                <Button variant="ghost" size="sm">
-                  <Plus size={16} />
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={runDiagnostic}
+                  disabled={skillsLoading}
+                >
+                  <Database size={16} />
                 </Button>
               </div>
             </CardHeader>
@@ -457,19 +583,93 @@ const Profile = () => {
               {/* Error Display */}
               {error && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-700 font-medium">⚠️ {error}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadSkillsDirectly}
-                    className="mt-2"
-                  >
-                    Try Again
-                  </Button>
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle size={16} className="text-red-600" />
+                    <p className="text-red-700 font-medium">⚠️ {error}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadSkillsDirectly}
+                    >
+                      Try Again
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={runDiagnostic}
+                    >
+                      Run Diagnostic
+                    </Button>
+                  </div>
                 </div>
               )}
 
-              {/* Debug Info (Always visible for now) */}
+              {/* Diagnostic Info */}
+              {debugInfo && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                    <Database size={16} />
+                    🔍 Database Diagnostic Results
+                  </h4>
+                  
+                  <div className="space-y-4 text-sm">
+                    {/* User Info */}
+                    <div>
+                      <p className="font-medium text-blue-700 mb-1">Logged-in User:</p>
+                      <div className="bg-white p-2 rounded border text-xs font-mono">
+                        <p><strong>Email:</strong> {debugInfo.userInfo.loggedInUser?.email || 'Not available'}</p>
+                        <p><strong>Student ID:</strong> {debugInfo.userInfo.userStudentId || 'Not available'}</p>
+                      </div>
+                    </div>
+
+                    {/* Database Query Results */}
+                    <div>
+                      <p className="font-medium text-blue-700 mb-1">Database Query Results:</p>
+                      <div className="bg-white p-2 rounded border text-xs space-y-2">
+                        {debugInfo.databaseQueries.byStudentId && (
+                          <div>
+                            <p><strong>By Student ID ({debugInfo.databaseQueries.byStudentId.query}):</strong> {debugInfo.databaseQueries.byStudentId.count} results</p>
+                            {debugInfo.databaseQueries.byStudentId.error && (
+                              <p className="text-red-600">Error: {debugInfo.databaseQueries.byStudentId.error.message}</p>
+                            )}
+                          </div>
+                        )}
+                        
+                        {debugInfo.databaseQueries.byEmail && (
+                          <div>
+                            <p><strong>By Email ({debugInfo.databaseQueries.byEmail.query}):</strong> {debugInfo.databaseQueries.byEmail.count} results</p>
+                            {debugInfo.databaseQueries.byEmail.error && (
+                              <p className="text-red-600">Error: {debugInfo.databaseQueries.byEmail.error.message}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Available Students */}
+                    <div>
+                      <p className="font-medium text-blue-700 mb-1">Available Students in Database ({debugInfo.availableStudents.length}):</p>
+                      <div className="bg-white p-2 rounded border text-xs max-h-32 overflow-y-auto">
+                        {debugInfo.availableStudents.length > 0 ? (
+                          debugInfo.availableStudents.map((student, index) => (
+                            <div key={index} className="mb-1 pb-1 border-b border-gray-100 last:border-b-0">
+                              <p><strong>{student.first_name} {student.last_name}</strong></p>
+                              <p>Student ID: {student.student_id}</p>
+                              <p>Email: {student.email}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-gray-500">No students found in database</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Skills Debug Info */}
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info</h4>
                 <div className="text-xs font-mono text-yellow-700 space-y-1">
@@ -482,15 +682,24 @@ const Profile = () => {
                   <p><strong>Skills Loading:</strong> {skillsLoading ? 'Yes' : 'No'}</p>
                   <p><strong>Error:</strong> {error || 'None'}</p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadSkillsDirectly}
-                  className="mt-2"
-                  disabled={skillsLoading}
-                >
-                  🔄 Reload Skills
-                </Button>
+                <div className="flex gap-2 mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadSkillsDirectly}
+                    disabled={skillsLoading}
+                  >
+                    🔄 Reload Skills
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={runDiagnostic}
+                    disabled={skillsLoading}
+                  >
+                    🔍 Run Diagnostic
+                  </Button>
+                </div>
               </div>
 
               {skillsLoading ? (
@@ -614,7 +823,7 @@ const Profile = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found</h3>
                   <p className="text-gray-600 mb-4">
                     {user?.student_id ? 
-                      'We could not find any skills in your profile. Try refreshing or check your database connection.' :
+                      'We could not find any skills in your profile. The diagnostic above shows what we found in the database.' :
                       'No user logged in or student ID not available.'
                     }
                   </p>
@@ -627,9 +836,13 @@ const Profile = () => {
                       <RefreshCw size={16} className={skillsLoading ? 'animate-spin mr-2' : 'mr-2'} />
                       Reload Skills
                     </Button>
-                    <Button variant="outline">
-                      <Plus size={16} className="mr-2" />
-                      Add Skills
+                    <Button 
+                      onClick={runDiagnostic}
+                      disabled={skillsLoading}
+                      variant="outline"
+                    >
+                      <Database size={16} className="mr-2" />
+                      Run Diagnostic
                     </Button>
                   </div>
                 </div>

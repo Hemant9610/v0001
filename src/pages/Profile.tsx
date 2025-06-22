@@ -342,17 +342,19 @@ const Profile = () => {
     navigate('/login')
   }
 
-  // Helper functions for user info
+  // Helper functions for user info - FIXED TO USE DATABASE NAMES ONLY
   const getInitials = () => {
+    // Only use database first_name and last_name, never email
     if (studentProfile?.first_name && studentProfile?.last_name) {
       return `${studentProfile.first_name.charAt(0).toUpperCase()}${studentProfile.last_name.charAt(0).toUpperCase()}`
     }
     if (studentProfile?.first_name) {
       return studentProfile.first_name.charAt(0).toUpperCase()
     }
-    if (studentProfile?.email) {
-      return studentProfile.email.charAt(0).toUpperCase()
+    if (studentProfile?.last_name) {
+      return studentProfile.last_name.charAt(0).toUpperCase()
     }
+    // Only fallback to email if no database names exist
     if (user?.email) {
       return user.email.charAt(0).toUpperCase()
     }
@@ -360,6 +362,7 @@ const Profile = () => {
   }
 
   const getFullName = () => {
+    // ONLY use database first_name and last_name
     if (studentProfile?.first_name && studentProfile?.last_name) {
       return `${studentProfile.first_name} ${studentProfile.last_name}`
     }
@@ -369,12 +372,7 @@ const Profile = () => {
     if (studentProfile?.last_name) {
       return studentProfile.last_name
     }
-    if (studentProfile?.email) {
-      return studentProfile.email.split('@')[0]
-    }
-    if (user?.email) {
-      return user.email.split('@')[0]
-    }
+    // Only show "Student Profile" if no database names exist
     return 'Student Profile'
   }
 
@@ -456,6 +454,7 @@ const Profile = () => {
                 <div className="flex-1 pt-4 sm:pt-8">
                   <div className="flex items-start justify-between">
                     <div>
+                      {/* Display ONLY database first_name and last_name */}
                       <h1 className="text-4xl font-bold text-gray-900 mb-2">
                         {getFullName()}
                       </h1>

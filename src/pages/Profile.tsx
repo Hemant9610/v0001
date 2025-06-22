@@ -155,12 +155,12 @@ const Profile = () => {
     try {
       console.log('🔍 DIRECT FETCH - Loading skills for student_id:', user.student_id)
       
-      // Direct database query
+      // Direct database query - using maybeSingle() instead of single()
       const { data, error } = await supabase
         .from('v0001_student_database')
         .select('skills, first_name, last_name, student_id')
         .eq('student_id', user.student_id)
-        .single()
+        .maybeSingle()
       
       if (error) {
         console.error('❌ Database error:', error)

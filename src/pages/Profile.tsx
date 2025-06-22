@@ -21,10 +21,7 @@ import {
   Star,
   TrendingUp,
   BookOpen,
-  Target,
-  RefreshCw,
-  AlertTriangle,
-  Database
+  Target
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -39,134 +36,192 @@ import { supabase } from '@/lib/supabase'
 
 const Profile = () => {
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
-  const [loading, setLoading] = useState(true)
+  const { user, studentProfile, signOut, refreshStudentProfile } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [profileData, setProfileData] = useState(null)
-  const [skills, setSkills] = useState([])
 
-  // Function to fetch student profile directly from database
-  const fetchStudentProfile = async () => {
-    if (!user?.student_id) {
-      setError('No student ID available')
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      // Query the v0001_student_database table directly
-      const { data, error: dbError } = await supabase
-        .from('v0001_student_database')
-        .select('*')
-        .eq('student_id', user.student_id)
-        .maybeSingle()
-
-      if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`)
-      }
-
-      if (!data) {
-        // Try to find by email as fallback
-        const { data: emailData, error: emailError } = await supabase
-          .from('v0001_student_database')
-          .select('*')
-          .eq('email', user.email)
-          .maybeSingle()
-
-        if (emailError) {
-          throw new Error(`Email lookup error: ${emailError.message}`)
-        }
-
-        if (!emailData) {
-          setError('No student profile found in database')
+  // Refresh profile data when component mounts
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user && !studentProfile) {
+        setLoading(true)
+        try {
+          await refreshStudentProfile()
+        } catch (err) {
+          setError('Failed to load profile data')
+        } finally {
           setLoading(false)
-          return
         }
-
-        setProfileData(emailData)
-      } else {
-        setProfileData(data)
       }
-
-      // Parse skills from the profile data
-      if (data?.skills || emailData?.skills) {
-        const skillsData = data?.skills || emailData?.skills
-        const parsedSkills = parseSkillsFromDatabase(skillsData)
-        setSkills(parsedSkills)
-      }
-
-      setLoading(false)
-    } catch (err) {
-      setError(err.message)
-      setLoading(false)
     }
+
+    loadProfile()
+  }, [user, studentProfile, refreshStudentProfile])
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login')
   }
 
-  // Function to parse skills from JSONB format
-  const parseSkillsFromDatabase = (skillsData) => {
-    if (!skillsData || skillsData === null || skillsData === undefined) {
-      return []
+  // Enhanced helper function to safely render JSONB data from database
+  const renderJSONBData = (data: any, fallback = []) => {
+    if (!data || data === null || data === undefined) {
+      return fallback
     }
     
     // Handle direct arrays
-    if (Array.isArray(skillsData)) {
-      return skillsData.filter(skill => skill && typeof skill === 'string' && skill.trim())
+    if (Array.isArray(data)) {
+      return data.filter(item => item !== null && item !== undefined && item !== '')
     }
     
     // Handle JSONB string format
-    if (typeof skillsData === 'string') {
+    if (typeof data === 'string') {
       try {
-        let cleanedData = skillsData.trim()
-        
-        // Remove outer quotes if present
-        if (cleanedData.startsWith('"') && cleanedData.endsWith('"')) {
-          cleanedData = cleanedData.slice(1, -1)
-        }
-        
-        // Unescape escaped quotes
-        cleanedData = cleanedData.replace(/\\"/g, '"')
-        
-        const parsed = JSON.parse(cleanedData)
+        const parsed = JSON.parse(data)
         
         if (Array.isArray(parsed)) {
-          return parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
+          return parsed.filter(item => item !== null && item !== undefined && item !== '')
         }
         
-        if (typeof parsed === 'string' && parsed.trim()) {
-          return [parsed.trim()]
+        // If parsed object, extract values
+        if (typeof parsed === 'object' && parsed !== null) {
+          const values = Object.values(parsed).flat().filter(item => 
+            item !== null && item !== undefined && item !== ''
+          )
+          return values
         }
         
-        return []
+        return [parsed].filter(item => item !== null && item !== undefined && item !== '')
       } catch (err) {
-        const trimmed = skillsData.trim()
-        return trimmed ? [trimmed] : []
+        return data.trim() ? [data] : fallback
       }
     }
     
-    // Handle object format
-    if (typeof skillsData === 'object' && skillsData !== null) {
-      const values = Object.values(skillsData).flat()
-      return values.filter(skill => skill && typeof skill === 'string' && skill.trim())
+    // Handle JSONB object format
+    if (typeof data === 'object' && data !== null) {
+      // Check if it's a PostgreSQL JSONB object with array values
+      const values = Object.values(data)
+      const flatValues = values.flat().filter(item => 
+        item !== null && item !== undefined && item !== ''
+      )
+      
+      if (flatValues.length > 0) {
+        return flatValues
+      }
+      
+      // If no valid values, try to stringify and return as single item
+      const stringified = JSON.stringify(data)
+      return stringified !== '{}' && stringified !== 'null' ? [stringified] : fallback
     }
     
-    return []
+    // Handle primitive values
+    if (typeof data === 'string' || typeof data === 'number') {
+      const stringValue = String(data).trim()
+      return stringValue ? [stringValue] : fallback
+    }
+    
+    return fallback
   }
 
-  // Function to categorize skills
-  const categorizeSkills = (skillsList) => {
-    const categories = {
-      'Programming Languages': ['Python', 'JavaScript', 'Java', 'C++', 'C#', 'TypeScript'],
-      'Cybersecurity': ['Ethical Hacking', 'Wireshark', 'Burp Suite', 'Metasploit', 'SQL Injection', 'OWASP', 'Cybersecurity Auditing'],
-      'Networking': ['Networking', 'TCP/IP', 'DNS', 'Network Security'],
-      'Operating Systems': ['Linux', 'Windows', 'Unix', 'Ubuntu'],
-      'Tools & Software': ['Wireshark', 'Burp Suite', 'Metasploit'],
-      'Other': []
+  // Helper function to get initials from the logged-in user's name
+  const getInitials = () => {
+    if (studentProfile?.first_name && studentProfile?.last_name) {
+      return `${studentProfile.first_name.charAt(0).toUpperCase()}${studentProfile.last_name.charAt(0).toUpperCase()}`
     }
-    
-    const categorized = {}
+    if (studentProfile?.first_name) {
+      return studentProfile.first_name.charAt(0).toUpperCase()
+    }
+    if (studentProfile?.email) {
+      return studentProfile.email.charAt(0).toUpperCase()
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase()
+    }
+    return 'U'
+  }
+
+  // Get the full name of the logged-in user
+  const getFullName = () => {
+    if (studentProfile?.first_name && studentProfile?.last_name) {
+      return `${studentProfile.first_name} ${studentProfile.last_name}`
+    }
+    if (studentProfile?.first_name) {
+      return studentProfile.first_name
+    }
+    if (studentProfile?.last_name) {
+      return studentProfile.last_name
+    }
+    // Fallback to email if no name is available
+    if (studentProfile?.email) {
+      return studentProfile.email.split('@')[0]
+    }
+    if (user?.email) {
+      return user.email.split('@')[0]
+    }
+    return 'Student Profile'
+  }
+
+  // Get user's email (prioritize student profile, fallback to auth user)
+  const getUserEmail = () => {
+    return studentProfile?.email || user?.email || 'No email available'
+  }
+
+  // Get user's student ID
+  const getStudentId = () => {
+    return studentProfile?.student_id || user?.student_id || 'No student ID'
+  }
+
+  // Parse JSONB data from database with enhanced processing
+  const skills = renderJSONBData(studentProfile?.skills, [])
+  const projects = renderJSONBData(studentProfile?.projects, [])
+  const experience = studentProfile?.experience || {}
+  const certifications = renderJSONBData(studentProfile?.certifications_and_licenses, [])
+  const jobPrefs = studentProfile?.job_preferences || {}
+
+  // Enhanced skill categorization with more comprehensive matching
+  const categorizeSkills = (skillsList: string[]) => {
+    const categories = {
+      'Programming Languages': [
+        'JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 
+        'Swift', 'Kotlin', 'Scala', 'R', 'MATLAB', 'Perl', 'Dart', 'C', 'Assembly', 'Haskell',
+        'Clojure', 'F#', 'VB.NET', 'Objective-C', 'Shell', 'Bash', 'PowerShell'
+      ],
+      'Frontend Technologies': [
+        'React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'SCSS', 'LESS',
+        'jQuery', 'Svelte', 'Next.js', 'Nuxt.js', 'Gatsby', 'Webpack', 'Vite', 'Parcel',
+        'Material-UI', 'Ant Design', 'Chakra UI', 'Styled Components', 'Emotion'
+      ],
+      'Backend Technologies': [
+        'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Laravel', 'Rails', 'ASP.NET',
+        'FastAPI', 'Koa', 'Hapi', 'Nest.js', 'Strapi', 'GraphQL', 'REST API', 'gRPC'
+      ],
+      'Databases': [
+        'MongoDB', 'MySQL', 'PostgreSQL', 'Redis', 'SQLite', 'Firebase', 'Firestore',
+        'DynamoDB', 'Cassandra', 'Neo4j', 'InfluxDB', 'CouchDB', 'MariaDB', 'Oracle',
+        'SQL Server', 'Elasticsearch'
+      ],
+      'Cloud & DevOps': [
+        'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git', 'GitHub', 'GitLab',
+        'CircleCI', 'Travis CI', 'Terraform', 'Ansible', 'Chef', 'Puppet', 'Vagrant',
+        'Heroku', 'Vercel', 'Netlify', 'DigitalOcean'
+      ],
+      'Mobile Development': [
+        'React Native', 'Flutter', 'iOS', 'Android', 'Xamarin', 'Ionic', 'Cordova',
+        'Swift', 'Kotlin', 'Objective-C', 'Java'
+      ],
+      'Data Science & AI': [
+        'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Scikit-learn',
+        'Pandas', 'NumPy', 'Matplotlib', 'Seaborn', 'Jupyter', 'R', 'MATLAB',
+        'Data Analysis', 'Statistics', 'Big Data', 'Hadoop', 'Spark'
+      ],
+      'Design & UI/UX': [
+        'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator', 'InDesign',
+        'UI Design', 'UX Design', 'Prototyping', 'Wireframing', 'User Research'
+      ],
+      'Other Skills': []
+    }
+
+    const categorized: { [key: string]: string[] } = {}
     
     skillsList.forEach(skill => {
       let placed = false
@@ -185,71 +240,12 @@ const Profile = () => {
       }
       
       if (!placed) {
-        if (!categorized['Other']) categorized['Other'] = []
-        categorized['Other'].push(skill)
+        if (!categorized['Other Skills']) categorized['Other Skills'] = []
+        categorized['Other Skills'].push(skill)
       }
     })
-    
+
     return categorized
-  }
-
-  // Function to get category colors
-  const getCategoryColor = (category) => {
-    const colors = {
-      'Programming Languages': 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700',
-      'Cybersecurity': 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700',
-      'Networking': 'bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700',
-      'Operating Systems': 'bg-gradient-to-r from-gray-500 to-slate-600 text-white hover:from-gray-600 hover:to-slate-700',
-      'Tools & Software': 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700',
-      'Other': 'bg-gradient-to-r from-slate-500 to-gray-600 text-white hover:from-slate-600 hover:to-gray-700'
-    }
-    
-    return colors[category] || colors['Other']
-  }
-
-  // Load profile data when component mounts
-  useEffect(() => {
-    fetchStudentProfile()
-  }, [user?.student_id])
-
-  const handleSignOut = async () => {
-    await signOut()
-    navigate('/login')
-  }
-
-  // Helper functions for user info - ONLY use database data
-  const getInitials = () => {
-    if (profileData?.first_name && profileData?.last_name) {
-      return `${profileData.first_name.charAt(0).toUpperCase()}${profileData.last_name.charAt(0).toUpperCase()}`
-    }
-    if (profileData?.first_name) {
-      return profileData.first_name.charAt(0).toUpperCase()
-    }
-    if (profileData?.last_name) {
-      return profileData.last_name.charAt(0).toUpperCase()
-    }
-    return 'U'
-  }
-
-  const getFullName = () => {
-    if (profileData?.first_name && profileData?.last_name) {
-      return `${profileData.first_name} ${profileData.last_name}`
-    }
-    if (profileData?.first_name) {
-      return profileData.first_name
-    }
-    if (profileData?.last_name) {
-      return profileData.last_name
-    }
-    return 'Student Profile'
-  }
-
-  const getUserEmail = () => {
-    return profileData?.email || user?.email || 'No email available'
-  }
-
-  const getStudentId = () => {
-    return profileData?.student_id || user?.student_id || 'No student ID'
   }
 
   const categorizedSkills = categorizeSkills(skills)
@@ -270,20 +266,11 @@ const Profile = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
+        <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <div className="space-y-2">
-            <Button onClick={fetchStudentProfile} className="w-full">
-              <RefreshCw size={16} className="mr-2" />
-              Try Again
-            </Button>
-            <Button onClick={handleSignOut} variant="outline" className="w-full">
-              <LogOut size={16} className="mr-2" />
-              Sign Out
-            </Button>
-          </div>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
         </div>
       </div>
     )
@@ -302,6 +289,7 @@ const Profile = () => {
             <span className="font-medium">Back</span>
           </button>
           
+          {/* Show current user info in header */}
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900">{getFullName()}</p>
@@ -321,52 +309,83 @@ const Profile = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Centered Main Profile Content */}
         <div className="space-y-6">
           {/* Profile Header Card */}
           <Card className="overflow-hidden">
+            {/* Cover Photo */}
             <div className="h-48 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 relative">
               <div className="absolute inset-0 bg-black/20"></div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 text-white hover:bg-white/20"
+              >
+                <Edit3 size={16} />
+              </Button>
             </div>
 
             <CardContent className="relative px-6 pb-6">
+              {/* Profile Picture */}
               <div className="flex flex-col sm:flex-row gap-6 -mt-20">
                 <div className="relative">
                   <Avatar className="w-40 h-40 border-4 border-white shadow-lg">
                     <AvatarImage
-                      src={profileData?.profile_image}
+                      src={studentProfile?.profile_image}
                       alt={`${getFullName()}'s profile picture`}
                     />
                     <AvatarFallback className="text-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white shadow-md hover:bg-gray-50"
+                  >
+                    <Edit3 size={14} />
+                  </Button>
                 </div>
 
+                {/* Profile Info - Prominently display user's name */}
                 <div className="flex-1 pt-4 sm:pt-8">
                   <div className="flex items-start justify-between">
                     <div>
-                      {/* Display database first_name and last_name */}
+                      {/* User's Full Name - Large and prominent */}
                       <h1 className="text-4xl font-bold text-gray-900 mb-2">
                         {getFullName()}
                       </h1>
                       
+                      {/* Student ID and Role */}
                       <div className="flex items-center gap-3 mb-3">
-                        <p className="text-lg text-gray-700 font-medium">Student</p>
+                        <p className="text-lg text-gray-700 font-medium">
+                          {jobPrefs.desired_role || 'Student'}
+                        </p>
                         <span className="text-gray-400">•</span>
                         <p className="text-lg text-blue-600 font-medium">
                           {getStudentId()}
                         </p>
                       </div>
                       
+                      {/* Location and connections */}
                       <div className="flex items-center text-gray-600 text-sm mb-3">
                         <MapPin size={16} className="mr-1" />
-                        <span>Location not specified</span>
+                        <span>{jobPrefs.location || 'Location not specified'}</span>
                         <span className="mx-2">•</span>
                         <span className="text-blue-600 font-medium">
                           {skills.length > 0 ? `${skills.length} skills` : 'Building skills'}
                         </span>
                       </div>
                       
+                      {/* Company/Institution */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <Building2 size={16} className="text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          {jobPrefs.company_preference || 'Open to opportunities'}
+                        </span>
+                      </div>
+                      
+                      {/* Email */}
                       <div className="flex items-center gap-2 mb-4">
                         <Mail size={16} className="text-gray-500" />
                         <span className="text-sm text-gray-600">
@@ -374,38 +393,45 @@ const Profile = () => {
                         </span>
                       </div>
                     </div>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal size={20} />
+                    </Button>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex gap-3 mt-4">
                     <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6">
-                      Open to work
+                      Open to
                     </Button>
                     <Button variant="outline" className="px-6">
                       Add profile section
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="px-6"
-                      onClick={fetchStudentProfile}
-                    >
-                      <RefreshCw size={16} className="mr-2" />
-                      Refresh
+                    <Button variant="outline" className="px-6">
+                      Enhance profile
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Resources
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Profile Status */}
+              {/* Open to Work Banner */}
               <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Profile Active</h3>
+                    <h3 className="font-semibold text-gray-900 mb-1">Open to work</h3>
                     <p className="text-sm text-gray-700">
-                      Your profile is loaded from the database with {skills.length} skills
+                      {jobPrefs.job_type || 'Full-time'}, {jobPrefs.desired_role || 'Developer'} and {jobPrefs.industry || 'Technology'} roles
                     </p>
+                    <Button variant="link" className="p-0 h-auto text-blue-600 text-sm">
+                      Show details
+                    </Button>
                   </div>
+                  <Button variant="ghost" size="sm" className="ml-auto">
+                    <Edit3 size={16} />
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -421,14 +447,15 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-700 leading-relaxed">
-                {profileData?.experience?.summary || 
-                 `Passionate student with expertise in modern technologies. 
-                 Currently pursuing studies and seeking opportunities in the technology sector.`}
+                {experience?.summary || 
+                 `Passionate ${jobPrefs.desired_role || 'student'} with expertise in modern technologies. 
+                 Currently pursuing ${jobPrefs.education_level || 'undergraduate studies'} and seeking 
+                 opportunities in ${jobPrefs.industry || 'technology sector'}.`}
               </p>
             </CardContent>
           </Card>
 
-          {/* Skills Section */}
+          {/* Enhanced Skills Section with JSONB Data Handling */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -438,12 +465,11 @@ const Profile = () => {
                 </Badge>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={fetchStudentProfile}
-                >
-                  <RefreshCw size={16} />
+                <Button variant="ghost" size="sm">
+                  <Plus size={16} />
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
                 </Button>
               </div>
             </CardHeader>
@@ -457,87 +483,73 @@ const Profile = () => {
                       <div className="text-sm text-gray-600">Total Skills</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {Object.keys(categorizedSkills).length}
-                      </div>
+                      <div className="text-2xl font-bold text-green-600">{Object.keys(categorizedSkills).length}</div>
                       <div className="text-sm text-gray-600">Categories</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {Math.floor(skills.length * 0.3)}
-                      </div>
-                      <div className="text-sm text-gray-600">Advanced</div>
+                      <div className="text-2xl font-bold text-purple-600">{projects.length}</div>
+                      <div className="text-sm text-gray-600">Projects</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {Math.floor(skills.length * 0.2)}
-                      </div>
-                      <div className="text-sm text-gray-600">Expert</div>
+                      <div className="text-2xl font-bold text-orange-600">{certifications.length}</div>
+                      <div className="text-sm text-gray-600">Certifications</div>
                     </div>
                   </div>
 
-                  {/* All Skills List */}
+                  {/* All Skills List (Simple Display) */}
                   <div className="space-y-3">
                     <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                       <Code size={20} className="text-blue-600" />
-                      All Skills ({skills.length})
+                      All Skills from Database
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {skills.map((skill, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 group"
-                        >
-                          <div className="flex items-center gap-3 flex-1">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {skills.map((skill: string, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 group">
+                          <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                               <Code size={14} className="text-white" />
                             </div>
-                            <div className="flex-1">
+                            <div>
                               <span className="font-medium text-gray-900 text-sm">{skill}</span>
                               <div className="flex items-center gap-2 mt-1">
-                                <Progress 
-                                  value={Math.floor(Math.random() * 40) + 60} 
-                                  className="w-16 h-1.5" 
-                                />
+                                <Progress value={Math.floor(Math.random() * 40) + 60} className="w-16 h-1.5" />
                                 <span className="text-xs text-gray-500">
-                                  {['Beginner', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)]}
+                                  {Math.floor(Math.random() * 3) + 1}+ yrs
                                 </span>
                               </div>
                             </div>
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            Skill
-                          </Badge>
+                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Star size={14} />
+                          </Button>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Categorized Skills */}
-                  <div className="space-y-4">
-                    {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
-                      categorySkills.length > 0 && (
-                        <div key={category} className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-800">{category}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {categorySkills.length}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {categorySkills.map((skill, index) => (
-                              <Badge
-                                key={index}
-                                className={`px-3 py-1 ${getCategoryColor(category)}`}
-                              >
-                                {skill}
-                              </Badge>
-                            ))}
-                          </div>
+                  {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
+                    categorySkills.length > 0 && (
+                      <div key={category} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-800">{category}</h3>
+                          <Badge variant="outline" className="text-xs">
+                            {categorySkills.length}
+                          </Badge>
                         </div>
-                      )
-                    ))}
-                  </div>
+                        <div className="flex flex-wrap gap-2">
+                          {categorySkills.map((skill: string, index: number) => (
+                            <Badge
+                              key={index}
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 px-3 py-1"
+                            >
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
 
                   {/* Top Skills Highlight */}
                   <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
@@ -546,7 +558,7 @@ const Profile = () => {
                       <h3 className="font-semibold text-gray-800">Top Skills</h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {skills.slice(0, 5).map((skill, index) => (
+                      {skills.slice(0, 5).map((skill: string, index: number) => (
                         <Badge
                           key={index}
                           className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
@@ -561,63 +573,340 @@ const Profile = () => {
               ) : (
                 <div className="text-center py-12 text-gray-500">
                   <Code size={64} className="mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found in database</h3>
                   <p className="text-gray-600 mb-4">
-                    No skills data found in your profile
+                    {studentProfile ? 
+                      'Your profile exists but no skills are recorded. Add your skills to showcase your expertise.' :
+                      'No profile data found. Please check your database connection.'
+                    }
                   </p>
-                  <Button 
-                    onClick={fetchStudentProfile}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <RefreshCw size={16} className="mr-2" />
-                    Reload Profile
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Plus size={16} className="mr-2" />
+                    Add your first skill
+                  </Button>
+                  
+                  {/* Debug button for development */}
+                  {import.meta.env.DEV && (
+                    <div className="mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refreshStudentProfile}
+                      >
+                        🔄 Refresh Profile Data
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Enhanced Experience Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Experience</h2>
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  {Object.keys(experience).length > 1 ? `${Object.keys(experience).length - 1} roles` : 'Entry level'}
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm">
+                  <Plus size={16} />
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {experience && Object.keys(experience).length > 0 ? (
+                <div className="space-y-6">
+                  {/* Experience Timeline */}
+                  <div className="relative">
+                    {Object.entries(experience).map(([key, value], index) => {
+                      if (key === 'summary') return null // Skip summary as it's shown in About
+                      return (
+                        <div key={key} className="flex gap-4 pb-6 relative">
+                          {/* Timeline line */}
+                          {index < Object.keys(experience).length - 2 && (
+                            <div className="absolute left-6 top-12 w-0.5 h-full bg-gray-200"></div>
+                          )}
+                          
+                          {/* Company logo placeholder */}
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 relative z-10">
+                            <Building2 size={20} className="text-white" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <h3 className="font-semibold text-gray-900 capitalize text-lg">
+                                    {key.replace(/_/g, ' ')}
+                                  </h3>
+                                  <p className="text-blue-600 font-medium">
+                                    {jobPrefs.company_preference || 'Technology Company'}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  Current
+                                </Badge>
+                              </div>
+                              
+                              <p className="text-gray-700 text-sm mb-3 leading-relaxed">
+                                {typeof value === 'string' ? value : JSON.stringify(value)}
+                              </p>
+                              
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Calendar size={14} />
+                                  <span>
+                                    {studentProfile?.created_at && 
+                                     `${new Date(studentProfile.created_at).getFullYear()} - Present`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin size={14} />
+                                  <span>{jobPrefs.location || 'Remote'}</span>
+                                </div>
+                              </div>
+
+                              {/* Skills used in this role */}
+                              <div className="mt-3 pt-3 border-t border-gray-100">
+                                <p className="text-xs text-gray-500 mb-2">Skills used:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {skills.slice(0, 4).map((skill: string, skillIndex: number) => (
+                                    <Badge
+                                      key={skillIndex}
+                                      variant="secondary"
+                                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                                    >
+                                      {skill}
+                                    </Badge>
+                                  ))}
+                                  {skills.length > 4 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{skills.length - 4} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Experience Summary */}
+                  {experience.summary && (
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target size={16} className="text-green-600" />
+                        <h3 className="font-semibold text-gray-800">Professional Summary</h3>
+                      </div>
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {experience.summary}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Briefcase size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No experience added yet</h3>
+                  <p className="text-gray-600 mb-4">Showcase your professional journey and accomplishments</p>
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    <Plus size={16} className="mr-2" />
+                    Add experience
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Projects Section */}
+          {/* Enhanced Projects Section */}
           <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold">Projects</h2>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-gray-500">
-                <Code size={64} className="mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects added yet</h3>
-                <p className="text-gray-600 mb-4">Showcase your work and demonstrate your skills</p>
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white">
-                  <Plus size={16} className="mr-2" />
-                  Add project
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">Projects</h2>
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  {projects.length} projects
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm">
+                  <Plus size={16} />
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
                 </Button>
               </div>
+            </CardHeader>
+            <CardContent>
+              {projects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {projects.map((project: any, index: number) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all duration-200 group">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Code size={20} className="text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {project.name || project.title || `Project ${index + 1}`}
+                            </h3>
+                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ExternalLink size={14} />
+                            </Button>
+                          </div>
+                          
+                          {project.description && (
+                            <p className="text-gray-700 text-sm mb-3 leading-relaxed line-clamp-3">
+                              {project.description}
+                            </p>
+                          )}
+                          
+                          {project.technologies && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {Array.isArray(project.technologies) ? 
+                                project.technologies.slice(0, 3).map((tech: string, techIndex: number) => (
+                                  <Badge
+                                    key={techIndex}
+                                    variant="secondary"
+                                    className="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  >
+                                    {tech}
+                                  </Badge>
+                                )) : (
+                                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                                    {project.technologies}
+                                  </Badge>
+                                )
+                              }
+                              {Array.isArray(project.technologies) && project.technologies.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{project.technologies.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between">
+                            {project.url ? (
+                              <a 
+                                href={project.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                View Project
+                                <ExternalLink size={14} className="ml-1" />
+                              </a>
+                            ) : (
+                              <span className="text-sm text-gray-500">In Development</span>
+                            )}
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Star size={12} />
+                              <span>{Math.floor(Math.random() * 50) + 10}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Code size={64} className="mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No projects added yet</h3>
+                  <p className="text-gray-600 mb-4">Showcase your work and demonstrate your skills</p>
+                  <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                    <Plus size={16} className="mr-2" />
+                    Add project
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Database Info Card */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader>
-              <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-                <Database size={20} />
-                Profile Data Source
-              </h3>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p><strong>Database Table:</strong> v0001_student_database</p>
-                  <p><strong>Student ID:</strong> {profileData?.student_id}</p>
-                  <p><strong>Database ID:</strong> {profileData?.id}</p>
+          {/* Enhanced Certifications Section */}
+          {certifications.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold">Licenses & Certifications</h2>
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                    {certifications.length} certifications
+                  </Badge>
                 </div>
-                <div>
-                  <p><strong>First Name:</strong> {profileData?.first_name || 'Not set'}</p>
-                  <p><strong>Last Name:</strong> {profileData?.last_name || 'Not set'}</p>
-                  <p><strong>Email:</strong> {profileData?.email || 'Not set'}</p>
+                <Button variant="ghost" size="sm">
+                  <Plus size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {certifications.map((cert: any, index: number) => (
+                    <div key={index} className="flex gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Award size={20} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 mb-1">
+                          {cert.name || cert.title || `Certification ${index + 1}`}
+                        </h4>
+                        {cert.issuer && (
+                          <p className="text-sm text-blue-600 font-medium mb-1">{cert.issuer}</p>
+                        )}
+                        {cert.date && (
+                          <p className="text-xs text-gray-500">Issued {cert.date}</p>
+                        )}
+                        <div className="mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            Verified
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Job Preferences Section */}
+          {Object.keys(jobPrefs).length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <h2 className="text-xl font-semibold">Job Preferences</h2>
+                <Button variant="ghost" size="sm">
+                  <Edit3 size={16} />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(jobPrefs).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <Briefcase size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 capitalize font-medium">
+                          {key.replace(/_/g, ' ')}
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {typeof value === 'string' ? value : JSON.stringify(value)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

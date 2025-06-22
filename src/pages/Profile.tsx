@@ -33,6 +33,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { SkillsDisplay } from '@/components/SkillsDisplay'
+import { parseSkillsFromJSONB } from '@/lib/skillsParser'
 
 const Profile = () => {
   const navigate = useNavigate()
@@ -194,91 +196,17 @@ const Profile = () => {
   console.log('🔍 Raw projects data:', studentProfile?.projects)
   console.log('🔍 Raw experience data:', studentProfile?.experience)
 
-  const skills = renderJSONBData(studentProfile?.skills, [])
+  // Use the new skills parser for better handling
+  const skills = parseSkillsFromJSONB(studentProfile?.skills)
   const projects = renderJSONBData(studentProfile?.projects, [])
   const experience = studentProfile?.experience || {}
   const certifications = renderJSONBData(studentProfile?.certifications_and_licenses, [])
   const jobPrefs = studentProfile?.job_preferences || {}
 
-  console.log('✅ Processed skills:', skills)
+  console.log('✅ Processed skills with new parser:', skills)
   console.log('✅ Processed projects:', projects)
   console.log('✅ Processed experience:', experience)
   console.log('✅ Processed certifications:', certifications)
-
-  // Enhanced skill categorization with more comprehensive matching
-  const categorizeSkills = (skillsList: string[]) => {
-    console.log('🔍 Categorizing skills:', skillsList)
-    
-    const categories = {
-      'Programming Languages': [
-        'JavaScript', 'Python', 'Java', 'C++', 'C#', 'TypeScript', 'PHP', 'Ruby', 'Go', 'Rust', 
-        'Swift', 'Kotlin', 'Scala', 'R', 'MATLAB', 'Perl', 'Dart', 'C', 'Assembly', 'Haskell',
-        'Clojure', 'F#', 'VB.NET', 'Objective-C', 'Shell', 'Bash', 'PowerShell'
-      ],
-      'Frontend Technologies': [
-        'React', 'Vue', 'Angular', 'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SASS', 'SCSS', 'LESS',
-        'jQuery', 'Svelte', 'Next.js', 'Nuxt.js', 'Gatsby', 'Webpack', 'Vite', 'Parcel',
-        'Material-UI', 'Ant Design', 'Chakra UI', 'Styled Components', 'Emotion'
-      ],
-      'Backend Technologies': [
-        'Node.js', 'Express', 'Django', 'Flask', 'Spring', 'Laravel', 'Rails', 'ASP.NET',
-        'FastAPI', 'Koa', 'Hapi', 'Nest.js', 'Strapi', 'GraphQL', 'REST API', 'gRPC'
-      ],
-      'Databases': [
-        'MongoDB', 'MySQL', 'PostgreSQL', 'Redis', 'SQLite', 'Firebase', 'Firestore',
-        'DynamoDB', 'Cassandra', 'Neo4j', 'InfluxDB', 'CouchDB', 'MariaDB', 'Oracle',
-        'SQL Server', 'Elasticsearch'
-      ],
-      'Cloud & DevOps': [
-        'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Jenkins', 'Git', 'GitHub', 'GitLab',
-        'CircleCI', 'Travis CI', 'Terraform', 'Ansible', 'Chef', 'Puppet', 'Vagrant',
-        'Heroku', 'Vercel', 'Netlify', 'DigitalOcean'
-      ],
-      'Mobile Development': [
-        'React Native', 'Flutter', 'iOS', 'Android', 'Xamarin', 'Ionic', 'Cordova',
-        'Swift', 'Kotlin', 'Objective-C', 'Java'
-      ],
-      'Data Science & AI': [
-        'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'Scikit-learn',
-        'Pandas', 'NumPy', 'Matplotlib', 'Seaborn', 'Jupyter', 'R', 'MATLAB',
-        'Data Analysis', 'Statistics', 'Big Data', 'Hadoop', 'Spark'
-      ],
-      'Design & UI/UX': [
-        'Figma', 'Sketch', 'Adobe XD', 'Photoshop', 'Illustrator', 'InDesign',
-        'UI Design', 'UX Design', 'Prototyping', 'Wireframing', 'User Research'
-      ],
-      'Other Skills': []
-    }
-
-    const categorized: { [key: string]: string[] } = {}
-    
-    skillsList.forEach(skill => {
-      let placed = false
-      const skillLower = skill.toLowerCase()
-      
-      for (const [category, keywords] of Object.entries(categories)) {
-        if (keywords.some(keyword => 
-          skillLower.includes(keyword.toLowerCase()) || 
-          keyword.toLowerCase().includes(skillLower)
-        )) {
-          if (!categorized[category]) categorized[category] = []
-          categorized[category].push(skill)
-          placed = true
-          break
-        }
-      }
-      
-      if (!placed) {
-        if (!categorized['Other Skills']) categorized['Other Skills'] = []
-        categorized['Other Skills'].push(skill)
-      }
-    })
-
-    console.log('✅ Categorized skills:', categorized)
-    return categorized
-  }
-
-  const categorizedSkills = categorizeSkills(skills)
 
   // Show loading state
   if (loading) {
@@ -485,7 +413,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Skills Section with JSONB Data Handling */}
+          {/* Enhanced Skills Section with New Parser */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -504,153 +432,25 @@ const Profile = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Debug Info for Skills (Development Only) */}
+              {/* Use the new SkillsDisplay component */}
+              <SkillsDisplay 
+                skillsData={studentProfile?.skills}
+                showCategories={true}
+                showLevels={true}
+              />
+              
+              {/* Refresh button for development */}
               {import.meta.env.DEV && (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info (JSONB Format)</h4>
-                  <div className="text-xs font-mono text-yellow-700 space-y-1">
-                    <p><strong>Raw skills data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
-                    <p><strong>Raw data type:</strong> {typeof studentProfile?.skills}</p>
-                    <p><strong>Is array:</strong> {Array.isArray(studentProfile?.skills) ? 'Yes' : 'No'}</p>
-                    <p><strong>Is null:</strong> {studentProfile?.skills === null ? 'Yes' : 'No'}</p>
-                    <p><strong>Processed skills:</strong> {JSON.stringify(skills)}</p>
-                    <p><strong>Skills count:</strong> {skills.length}</p>
-                    <p><strong>Sample skill:</strong> {skills[0] || 'None'}</p>
-                  </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={refreshStudentProfile}
-                    className="mt-2"
+                    className="flex items-center gap-2"
                   >
-                    🔄 Refresh Profile Data
+                    <Loader2 size={14} />
+                    Refresh Profile Data
                   </Button>
-                </div>
-              )}
-
-              {skills.length > 0 ? (
-                <div className="space-y-6">
-                  {/* Skills Overview */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{skills.length}</div>
-                      <div className="text-sm text-gray-600">Total Skills</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{Object.keys(categorizedSkills).length}</div>
-                      <div className="text-sm text-gray-600">Categories</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{projects.length}</div>
-                      <div className="text-sm text-gray-600">Projects</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{certifications.length}</div>
-                      <div className="text-sm text-gray-600">Certifications</div>
-                    </div>
-                  </div>
-
-                  {/* All Skills List (Simple Display) */}
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                      <Code size={20} className="text-blue-600" />
-                      All Skills from Database
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {skills.map((skill: string, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200 group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                              <Code size={14} className="text-white" />
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-900 text-sm">{skill}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Progress value={Math.floor(Math.random() * 40) + 60} className="w-16 h-1.5" />
-                                <span className="text-xs text-gray-500">
-                                  {Math.floor(Math.random() * 3) + 1}+ yrs
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Star size={14} />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Categorized Skills */}
-                  {Object.entries(categorizedSkills).map(([category, categorySkills]) => (
-                    categorySkills.length > 0 && (
-                      <div key={category} className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-800">{category}</h3>
-                          <Badge variant="outline" className="text-xs">
-                            {categorySkills.length}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {categorySkills.map((skill: string, index: number) => (
-                            <Badge
-                              key={index}
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 px-3 py-1"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ))}
-
-                  {/* Top Skills Highlight */}
-                  <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <TrendingUp size={20} className="text-orange-600" />
-                      <h3 className="font-semibold text-gray-800">Top Skills</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {skills.slice(0, 5).map((skill: string, index: number) => (
-                        <Badge
-                          key={index}
-                          className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
-                        >
-                          <Star size={12} className="mr-1" />
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Code size={64} className="mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found in database</h3>
-                  <p className="text-gray-600 mb-4">
-                    {studentProfile ? 
-                      'Your profile exists but no skills are recorded. Add your skills to showcase your expertise.' :
-                      'No profile data found. Please check your database connection.'
-                    }
-                  </p>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                    <Plus size={16} className="mr-2" />
-                    Add your first skill
-                  </Button>
-                  
-                  {/* Debug button for development */}
-                  {import.meta.env.DEV && (
-                    <div className="mt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={refreshStudentProfile}
-                      >
-                        🔄 Refresh Profile Data
-                      </Button>
-                    </div>
-                  )}
                 </div>
               )}
             </CardContent>
@@ -730,22 +530,12 @@ const Profile = () => {
                               {/* Skills used in this role */}
                               <div className="mt-3 pt-3 border-t border-gray-100">
                                 <p className="text-xs text-gray-500 mb-2">Skills used:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {skills.slice(0, 4).map((skill: string, skillIndex: number) => (
-                                    <Badge
-                                      key={skillIndex}
-                                      variant="secondary"
-                                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                                    >
-                                      {skill}
-                                    </Badge>
-                                  ))}
-                                  {skills.length > 4 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      +{skills.length - 4} more
-                                    </Badge>
-                                  )}
-                                </div>
+                                <SkillsDisplay 
+                                  skillsData={studentProfile?.skills}
+                                  compact={true}
+                                  maxSkillsToShow={4}
+                                  showCategories={false}
+                                />
                               </div>
                             </div>
                           </div>
@@ -966,7 +756,7 @@ const Profile = () => {
           {import.meta.env.DEV && (
             <Card className="border-dashed border-gray-300">
               <CardHeader>
-                <h2 className="text-sm font-mono text-gray-500">Debug Info (Dev Only) - JSONB Format</h2>
+                <h2 className="text-sm font-mono text-gray-500">Debug Info (Dev Only) - Enhanced JSONB Parser</h2>
               </CardHeader>
               <CardContent>
                 <div className="text-xs font-mono text-gray-500 space-y-2">
@@ -976,13 +766,13 @@ const Profile = () => {
                   <p><strong>Profile Loaded:</strong> {studentProfile ? 'Yes' : 'No'}</p>
                   <p><strong>Student ID:</strong> {getStudentId()}</p>
                   <p><strong>Database ID:</strong> {studentProfile?.id}</p>
-                  <p><strong>Skills Count:</strong> {skills.length}</p>
+                  <p><strong>Skills Count (New Parser):</strong> {skills.length}</p>
                   <p><strong>Projects Count:</strong> {projects.length}</p>
                   <p><strong>Experience Keys:</strong> {Object.keys(experience).length}</p>
                   <p><strong>Created:</strong> {studentProfile?.created_at}</p>
                   <p><strong>Raw Skills Data Type:</strong> {typeof studentProfile?.skills}</p>
                   <p><strong>Raw Skills Data:</strong> {JSON.stringify(studentProfile?.skills)}</p>
-                  <p><strong>Processed Skills:</strong> {JSON.stringify(skills)}</p>
+                  <p><strong>Processed Skills (New Parser):</strong> {JSON.stringify(skills)}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 

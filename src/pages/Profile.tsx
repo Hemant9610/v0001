@@ -49,8 +49,6 @@ const Profile = () => {
 
   // ENHANCED DIAGNOSTIC FUNCTION
   const runDiagnostic = async () => {
-    console.log('🔍 Running comprehensive diagnostic...')
-    
     const diagnostic = {
       userInfo: {
         loggedInUser: user,
@@ -64,7 +62,6 @@ const Profile = () => {
 
     try {
       // 1. Check what students exist in database
-      console.log('🔍 Step 1: Checking all students in database...')
       const { data: allStudents, error: allError } = await supabase
         .from('v0001_student_database')
         .select('id, student_id, first_name, last_name, email, skills')
@@ -72,16 +69,10 @@ const Profile = () => {
 
       if (!allError && allStudents) {
         diagnostic.availableStudents = allStudents
-        console.log('✅ Found students:', allStudents.map(s => ({
-          name: `${s.first_name} ${s.last_name}`,
-          student_id: s.student_id,
-          email: s.email
-        })))
       }
 
       // 2. Try to find student by the logged-in user's student_id
       if (user?.student_id) {
-        console.log('🔍 Step 2: Searching by user student_id:', user.student_id)
         const { data: byStudentId, error: studentIdError } = await supabase
           .from('v0001_student_database')
           .select('*')
@@ -97,7 +88,6 @@ const Profile = () => {
 
       // 3. Try to find student by email
       if (user?.email) {
-        console.log('🔍 Step 3: Searching by email:', user.email)
         const { data: byEmail, error: emailError } = await supabase
           .from('v0001_student_database')
           .select('*')
@@ -112,7 +102,6 @@ const Profile = () => {
       }
 
       // 4. Check auth table for user
-      console.log('🔍 Step 4: Checking auth table...')
       const { data: authData, error: authError } = await supabase
         .from('v0001_auth')
         .select('*')
@@ -126,7 +115,6 @@ const Profile = () => {
       }
 
       setDebugInfo(diagnostic)
-      console.log('🔍 Diagnostic complete:', diagnostic)
 
       // Try to find a working student profile
       let workingProfile = null
@@ -138,11 +126,9 @@ const Profile = () => {
       } else if (diagnostic.availableStudents.length > 0) {
         // Use first available student as fallback
         workingProfile = diagnostic.availableStudents[0]
-        console.log('⚠️ Using fallback student profile:', workingProfile)
       }
 
       if (workingProfile) {
-        console.log('✅ Found working profile, parsing skills...')
         const parsedSkills = parseSkillsDirectly(workingProfile.skills)
         setSkills(parsedSkills)
         setRawSkillsData(workingProfile.skills)
@@ -152,59 +138,40 @@ const Profile = () => {
       }
 
     } catch (err) {
-      console.error('❌ Diagnostic error:', err)
       setError(`Diagnostic failed: ${err.message}`)
     }
   }
 
   // DIRECT FUNCTION TO PARSE SKILLS - SIMPLIFIED AND ROBUST
   const parseSkillsDirectly = (skillsData) => {
-    console.log('🔧 DIRECT PARSING - Input:', {
-      data: skillsData,
-      type: typeof skillsData,
-      isArray: Array.isArray(skillsData),
-      isNull: skillsData === null,
-      stringified: JSON.stringify(skillsData)
-    })
-    
     // Handle null/undefined
     if (!skillsData || skillsData === null || skillsData === undefined) {
-      console.log('❌ No skills data')
       return []
     }
     
     // Handle direct arrays
     if (Array.isArray(skillsData)) {
-      console.log('✅ Direct array found')
       const filtered = skillsData.filter(skill => skill && typeof skill === 'string' && skill.trim())
-      console.log('✅ Filtered array:', filtered)
       return filtered
     }
     
     // Handle string format (most common for JSONB)
     if (typeof skillsData === 'string') {
-      console.log('🔧 Processing string format')
-      
       try {
         // Try direct JSON parse first
         let parsed = JSON.parse(skillsData)
-        console.log('✅ Direct JSON parse successful:', parsed)
         
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
-          console.log('✅ Parsed array skills:', filtered)
           return filtered
         }
         
         // If not array, treat as single skill
         if (typeof parsed === 'string' && parsed.trim()) {
-          console.log('✅ Single skill from parse:', [parsed])
           return [parsed.trim()]
         }
         
       } catch (firstError) {
-        console.log('⚠️ First parse failed, trying cleanup:', firstError.message)
-        
         try {
           // Clean up the string and try again
           let cleaned = skillsData.trim()
@@ -212,20 +179,16 @@ const Profile = () => {
           // Remove outer quotes if present
           if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
             cleaned = cleaned.slice(1, -1)
-            console.log('🔧 Removed outer quotes:', cleaned)
           }
           
           // Unescape quotes
           cleaned = cleaned.replace(/\\"/g, '"')
-          console.log('🔧 Unescaped quotes:', cleaned)
           
           // Try parsing again
           const parsed = JSON.parse(cleaned)
-          console.log('✅ Second parse successful:', parsed)
           
           if (Array.isArray(parsed)) {
             const filtered = parsed.filter(skill => skill && typeof skill === 'string' && skill.trim())
-            console.log('✅ Final parsed skills:', filtered)
             return filtered
           }
           
@@ -234,7 +197,6 @@ const Profile = () => {
           }
           
         } catch (secondError) {
-          console.log('⚠️ Second parse also failed:', secondError.message)
           // Treat as plain text
           const trimmed = skillsData.trim()
           return trimmed ? [trimmed] : []
@@ -244,21 +206,17 @@ const Profile = () => {
     
     // Handle object format
     if (typeof skillsData === 'object' && skillsData !== null) {
-      console.log('🔧 Processing object format')
       const values = Object.values(skillsData).flat()
       const filtered = values.filter(skill => skill && typeof skill === 'string' && skill.trim())
-      console.log('✅ Object values extracted:', filtered)
       return filtered
     }
     
-    console.log('❌ Could not parse skills data')
     return []
   }
 
   // DIRECT FUNCTION TO LOAD SKILLS FROM DATABASE
   const loadSkillsDirectly = async () => {
     if (!user?.student_id) {
-      console.log('❌ No student ID available, running diagnostic...')
       await runDiagnostic()
       return
     }
@@ -267,8 +225,6 @@ const Profile = () => {
     setError('')
     
     try {
-      console.log('🔍 DIRECT FETCH - Loading skills for student_id:', user.student_id)
-      
       // Direct database query - using maybeSingle() instead of single()
       const { data, error } = await supabase
         .from('v0001_student_database')
@@ -277,7 +233,6 @@ const Profile = () => {
         .maybeSingle()
       
       if (error) {
-        console.error('❌ Database error:', error)
         setError(`Database error: ${error.message}`)
         // Run diagnostic to find the issue
         await runDiagnostic()
@@ -285,25 +240,16 @@ const Profile = () => {
       }
       
       if (!data) {
-        console.log('❌ No student data found, running diagnostic...')
         setError('No student profile found for your student ID')
         await runDiagnostic()
         return
       }
-      
-      console.log('✅ DIRECT FETCH - Student data found:', {
-        name: `${data.first_name} ${data.last_name}`,
-        student_id: data.student_id,
-        skills_raw: data.skills,
-        skills_type: typeof data.skills
-      })
       
       // Store raw data for debugging
       setRawSkillsData(data.skills)
       
       // Parse skills directly
       const parsedSkills = parseSkillsDirectly(data.skills)
-      console.log('✅ DIRECT PARSE - Final skills:', parsedSkills)
       
       setSkills(parsedSkills)
       
@@ -312,7 +258,6 @@ const Profile = () => {
       }
       
     } catch (err) {
-      console.error('❌ Unexpected error:', err)
       setError(`Unexpected error: ${err.message}`)
       await runDiagnostic()
     } finally {
@@ -375,10 +320,8 @@ const Profile = () => {
   // Load skills when component mounts or user changes
   useEffect(() => {
     if (user?.student_id) {
-      console.log('🚀 Component mounted, loading skills for:', user.student_id)
       loadSkillsDirectly()
     } else {
-      console.log('🚀 No student ID, running diagnostic...')
       runDiagnostic()
     }
   }, [user?.student_id])
@@ -386,7 +329,6 @@ const Profile = () => {
   // Also try to load from studentProfile if available
   useEffect(() => {
     if (studentProfile?.skills && skills.length === 0) {
-      console.log('🔄 Trying to parse from studentProfile:', studentProfile.skills)
       const parsedFromProfile = parseSkillsDirectly(studentProfile.skills)
       if (parsedFromProfile.length > 0) {
         setSkills(parsedFromProfile)
@@ -548,7 +490,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* ENHANCED SKILLS SECTION WITH DIAGNOSTIC INFO */}
+          {/* SKILLS SECTION */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
@@ -569,14 +511,6 @@ const Profile = () => {
                 >
                   <RefreshCw size={16} className={skillsLoading ? 'animate-spin' : ''} />
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={runDiagnostic}
-                  disabled={skillsLoading}
-                >
-                  <Database size={16} />
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -595,112 +529,9 @@ const Profile = () => {
                     >
                       Try Again
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={runDiagnostic}
-                    >
-                      Run Diagnostic
-                    </Button>
                   </div>
                 </div>
               )}
-
-              {/* Diagnostic Info */}
-              {debugInfo && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                    <Database size={16} />
-                    🔍 Database Diagnostic Results
-                  </h4>
-                  
-                  <div className="space-y-4 text-sm">
-                    {/* User Info */}
-                    <div>
-                      <p className="font-medium text-blue-700 mb-1">Logged-in User:</p>
-                      <div className="bg-white p-2 rounded border text-xs font-mono">
-                        <p><strong>Email:</strong> {debugInfo.userInfo.loggedInUser?.email || 'Not available'}</p>
-                        <p><strong>Student ID:</strong> {debugInfo.userInfo.userStudentId || 'Not available'}</p>
-                      </div>
-                    </div>
-
-                    {/* Database Query Results */}
-                    <div>
-                      <p className="font-medium text-blue-700 mb-1">Database Query Results:</p>
-                      <div className="bg-white p-2 rounded border text-xs space-y-2">
-                        {debugInfo.databaseQueries.byStudentId && (
-                          <div>
-                            <p><strong>By Student ID ({debugInfo.databaseQueries.byStudentId.query}):</strong> {debugInfo.databaseQueries.byStudentId.count} results</p>
-                            {debugInfo.databaseQueries.byStudentId.error && (
-                              <p className="text-red-600">Error: {debugInfo.databaseQueries.byStudentId.error.message}</p>
-                            )}
-                          </div>
-                        )}
-                        
-                        {debugInfo.databaseQueries.byEmail && (
-                          <div>
-                            <p><strong>By Email ({debugInfo.databaseQueries.byEmail.query}):</strong> {debugInfo.databaseQueries.byEmail.count} results</p>
-                            {debugInfo.databaseQueries.byEmail.error && (
-                              <p className="text-red-600">Error: {debugInfo.databaseQueries.byEmail.error.message}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Available Students */}
-                    <div>
-                      <p className="font-medium text-blue-700 mb-1">Available Students in Database ({debugInfo.availableStudents.length}):</p>
-                      <div className="bg-white p-2 rounded border text-xs max-h-32 overflow-y-auto">
-                        {debugInfo.availableStudents.length > 0 ? (
-                          debugInfo.availableStudents.map((student, index) => (
-                            <div key={index} className="mb-1 pb-1 border-b border-gray-100 last:border-b-0">
-                              <p><strong>{student.first_name} {student.last_name}</strong></p>
-                              <p>Student ID: {student.student_id}</p>
-                              <p>Email: {student.email}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-gray-500">No students found in database</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Skills Debug Info */}
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h4 className="font-semibold text-yellow-800 mb-2">🔍 Skills Debug Info</h4>
-                <div className="text-xs font-mono text-yellow-700 space-y-1">
-                  <p><strong>User Student ID:</strong> {user?.student_id || 'Not available'}</p>
-                  <p><strong>Profile Student ID:</strong> {studentProfile?.student_id || 'Not available'}</p>
-                  <p><strong>Raw Skills Data:</strong> {JSON.stringify(rawSkillsData)}</p>
-                  <p><strong>Raw Data Type:</strong> {typeof rawSkillsData}</p>
-                  <p><strong>Parsed Skills Count:</strong> {skills.length}</p>
-                  <p><strong>Parsed Skills:</strong> {JSON.stringify(skills)}</p>
-                  <p><strong>Skills Loading:</strong> {skillsLoading ? 'Yes' : 'No'}</p>
-                  <p><strong>Error:</strong> {error || 'None'}</p>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadSkillsDirectly}
-                    disabled={skillsLoading}
-                  >
-                    🔄 Reload Skills
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={runDiagnostic}
-                    disabled={skillsLoading}
-                  >
-                    🔍 Run Diagnostic
-                  </Button>
-                </div>
-              </div>
 
               {skillsLoading ? (
                 <div className="text-center py-8">
@@ -823,7 +654,7 @@ const Profile = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No skills found</h3>
                   <p className="text-gray-600 mb-4">
                     {user?.student_id ? 
-                      'We could not find any skills in your profile. The diagnostic above shows what we found in the database.' :
+                      'We could not find any skills in your profile.' :
                       'No user logged in or student ID not available.'
                     }
                   </p>
@@ -835,14 +666,6 @@ const Profile = () => {
                     >
                       <RefreshCw size={16} className={skillsLoading ? 'animate-spin mr-2' : 'mr-2'} />
                       Reload Skills
-                    </Button>
-                    <Button 
-                      onClick={runDiagnostic}
-                      disabled={skillsLoading}
-                      variant="outline"
-                    >
-                      <Database size={16} className="mr-2" />
-                      Run Diagnostic
                     </Button>
                   </div>
                 </div>
